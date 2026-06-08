@@ -27,20 +27,38 @@ ssh-keygen -t ed25519 -a 100 -f ~/.ssh/vps-admin
 ssh-keygen -t ed25519 -a 100 -f ~/.ssh/vps-sftp
 ```
 
-Copier le dépôt sur le serveur avec l'accès root initial :
+Copier uniquement les clés publiques sur le serveur :
 
 ```bash
-scp -r ./VPS root@IP_DU_SERVEUR:/root/vps-setup
+scp ~/.ssh/vps-admin.pub ~/.ssh/vps-sftp.pub \
+  root@IP_DU_SERVEUR:/root/
 ssh root@IP_DU_SERVEUR
-cd /root/vps-setup
 ```
 
-Placer les clés publiques :
+## Télécharger le bundle sur le VPS
+
+Le dépôt complet MethodAZ ne doit pas être cloné. Choisir l'identifiant complet
+d'un commit validé, puis télécharger uniquement le bundle `VPS` :
 
 ```bash
-cp /CHEMIN_RECU/vps-admin.pub install/keys/admin.pub
-cp /CHEMIN_RECU/vps-sftp.pub install/keys/sftp.pub
+METHODAZ_REF=IDENTIFIANT_COMPLET_DU_COMMIT
+
+curl -fL \
+  "https://raw.githubusercontent.com/LucasGIRARD/MethodAZ/$METHODAZ_REF/VPS/install/scripts/fetch-vps.sh" \
+  -o /root/fetch-vps.sh
+
+less /root/fetch-vps.sh
+chmod 700 /root/fetch-vps.sh
+/root/fetch-vps.sh "$METHODAZ_REF" /root/vps-setup
+cd /root/vps-setup
+
+install -m 0644 /root/vps-admin.pub install/keys/admin.pub
+install -m 0644 /root/vps-sftp.pub install/keys/sftp.pub
+cat install/source-version.txt
 ```
+
+La procédure détaillée pour Windows, Linux et macOS se trouve dans
+[Téléchargement depuis GitHub](telechargement-github.md).
 
 ## Configuration publique
 
@@ -115,7 +133,8 @@ sudo vps-install --help
 ```
 
 Après réussite complète et sauvegarde chiffrée, supprimer la copie
-d'amorçage restée sous `/root/vps-setup/install/config/secrets.env`.
+d'amorçage restée sous `/root/vps-setup/install/config/secrets.env`. Conserver
+`/opt/vps-install/source-version.txt` pour identifier la version installée.
 
 ## Phases disponibles
 
