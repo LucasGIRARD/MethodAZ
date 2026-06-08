@@ -1,5 +1,13 @@
 # Installation
 
+Le bundle peut être téléchargé sans cloner le dépôt MethodAZ. Voir
+`docs/telechargement-github.md` ou les scripts :
+
+```text
+install/scripts/fetch-vps.sh
+install/scripts/fetch-vps.ps1
+```
+
 ## Fichiers locaux
 
 ```text

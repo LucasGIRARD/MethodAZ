@@ -25,6 +25,7 @@ case "$secret_mode" in
 esac
 
 for script in \
+  "$INSTALL_DIR/scripts/fetch-vps.sh" \
   "$INSTALL_DIR/scripts/generate-secrets.sh" \
   "$INSTALL_DIR/scripts/local-compose.sh" \
   "$INSTALL_DIR/scripts/vps-install.sh" \

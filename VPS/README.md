@@ -8,22 +8,23 @@ avec Docker, Nginx, Certbot, rapports de contrôle et services auto-hébergés.
 Lire et appliquer les documents dans cet ordre :
 
 1. [Contexte et hypothèses](docs/00-contexte-et-hypotheses.md)
-2. [Test local avec Docker Compose](docs/test-local-docker.md)
-3. [Installation automatisée](docs/installation-automatisee.md)
-4. [Base VPS Debian](01-vps-base.md)
-5. [Docker](docs/02-docker.md)
-6. [Bases de données partagées](docs/bases-donnees-partagees.md)
-7. [Services Docker](docs/03-services-docker.md)
-8. [Nginx et Certbot dans Docker](docs/04-nginx-certbot.md)
-9. [Supervision et rapports](docs/05-supervision-rapports.md)
-10. [Dashboard d'observabilité](docs/05-dashboard-observabilite.md)
-11. [Maintenance et mises à jour](docs/06-maintenance-mises-a-jour.md)
-12. [Commandes utiles](docs/07-commandes-utiles.md)
-13. [Annexe : référentiel des ports réseau](docs/08-annexe-ports.md)
-14. [Protection contre les scans et limitation Nginx](docs/09-protection-scans-rate-limit.md)
-15. [Journalisation, rotation et rétention](docs/10-journalisation-rotation.md)
-16. [Sécurité des images Docker](docs/securite-images-docker.md)
-17. [Dimensionnement du VPS IONOS](docs/dimensionnement-vps-ionos.md)
+2. [Téléchargement depuis GitHub](docs/telechargement-github.md)
+3. [Test local avec Docker Compose](docs/test-local-docker.md)
+4. [Installation automatisée](docs/installation-automatisee.md)
+5. [Base VPS Debian](docs/01-vps-base.md)
+6. [Docker](docs/02-docker.md)
+7. [Bases de données partagées](docs/bases-donnees-partagees.md)
+8. [Services Docker](docs/03-services-docker.md)
+9. [Nginx et Certbot dans Docker](docs/04-nginx-certbot.md)
+10. [Supervision et rapports](docs/05-supervision-rapports.md)
+11. [Dashboard d'observabilité](docs/05-dashboard-observabilite.md)
+12. [Maintenance et mises à jour](docs/06-maintenance-mises-a-jour.md)
+13. [Commandes utiles](docs/07-commandes-utiles.md)
+14. [Annexe : référentiel des ports réseau](docs/08-annexe-ports.md)
+15. [Protection contre les scans et limitation Nginx](docs/09-protection-scans-rate-limit.md)
+16. [Journalisation, rotation et rétention](docs/10-journalisation-rotation.md)
+17. [Sécurité des images Docker](docs/securite-images-docker.md)
+18. [Dimensionnement du VPS IONOS](docs/dimensionnement-vps-ionos.md)
 
 ## Décisions actives
 
@@ -54,6 +55,9 @@ Lire et appliquer les documents dans cet ordre :
   jour Debian à `04:15` et `04:45`, selon le fuseau `Europe/Paris`.
 
 ## Installation rapide
+
+Télécharger d'abord uniquement le bundle `VPS` en suivant
+[Téléchargement depuis GitHub](docs/telechargement-github.md), puis :
 
 ```bash
 cp install/config/vps.env.example install/config/vps.env

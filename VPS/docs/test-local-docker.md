@@ -13,6 +13,13 @@ install/local/work
 
 Ce répertoire et le fichier `install/local/secrets.env` sont exclus de Git.
 
+## Télécharger les fichiers
+
+Il n'est pas nécessaire de cloner MethodAZ. Télécharger uniquement le bundle
+`VPS` avec les scripts PowerShell ou Bash documentés dans
+[Téléchargement depuis GitHub](telechargement-github.md), puis exécuter les
+commandes suivantes depuis la racine du bundle.
+
 ## Périmètre
 
 | Projet | Validation Compose | Exécution locale |
