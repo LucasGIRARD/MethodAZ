@@ -1,0 +1,29 @@
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    server_name _;
+    return 444;
+}
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name
+        ${LINKWARDEN_DOMAIN}
+        ${DAVIS_DOMAIN}
+        ${FRESHRSS_DOMAIN}
+        ${TTRSS_DOMAIN}
+        ${NEWSLETTER_DOMAIN}
+        ${WEB_DOMAIN}
+        ${MONITORING_DOMAIN};
+
+    location ^~ /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+        default_type text/plain;
+        try_files $uri =404;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}

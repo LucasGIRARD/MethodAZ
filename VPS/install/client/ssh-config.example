@@ -1,0 +1,13 @@
+Host mon-vps
+    HostName IP_DU_SERVEUR
+    User lucas
+    Port PORT_REEL
+    IdentityFile ~/.ssh/vps-admin
+    IdentitiesOnly yes
+
+Host mon-vps-sftp
+    HostName IP_DU_SERVEUR
+    User depot
+    Port PORT_REEL
+    IdentityFile ~/.ssh/vps-sftp
+    IdentitiesOnly yes

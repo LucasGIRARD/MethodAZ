@@ -1,0 +1,111 @@
+#!/bin/sh
+set -eu
+
+STACK_ROOT=${STACK_ROOT:-/opt/selfhosted}
+REPORT_DIR=${REPORT_DIR:-/var/log/server-checks/docker-images}
+REPORT=${REPORT:-$REPORT_DIR/cve-report.txt}
+SERVICES="databases linkwarden davis freshrss ttrss kill-newsletter web gateway monitoring"
+
+[ "$(id -u)" -eq 0 ] || {
+  echo "Exécuter cette commande avec sudo ou comme root." >&2
+  exit 1
+}
+
+command -v docker >/dev/null 2>&1 || {
+  echo "Docker est introuvable." >&2
+  exit 1
+}
+
+docker scout version >/dev/null 2>&1 || {
+  echo "Docker Scout est absent. Suivre https://docs.docker.com/scout/install/" >&2
+  exit 1
+}
+
+mkdir -p "$REPORT_DIR"
+images_file=$(mktemp)
+trap 'rm -f "$images_file"' EXIT HUP INT TERM
+
+compose_images() {
+  stack=$1
+  service=$2
+  lock_file="$stack/docker-compose.lock.yml"
+
+  if [ -f "$lock_file" ]; then
+    files="-f $stack/docker-compose.yml -f $lock_file"
+  else
+    files="-f $stack/docker-compose.yml"
+  fi
+
+  # Les chemins d'installation ne contiennent ni espace ni caractère spécial.
+  # shellcheck disable=SC2086
+  case "$service" in
+    monitoring)
+      docker compose --project-directory "$stack" $files \
+        --profile containers --profile logs config --images
+      ;;
+    gateway)
+      docker compose --project-directory "$stack" $files \
+        --profile manual config --images
+      ;;
+    *)
+      docker compose --project-directory "$stack" $files config --images
+      ;;
+  esac
+}
+
+for service in $SERVICES; do
+  stack="$STACK_ROOT/$service"
+  [ -f "$stack/docker-compose.yml" ] || continue
+  compose_images "$stack" "$service" >> "$images_file"
+done
+docker ps --format '{{.Image}}' >> "$images_file"
+
+sort -u "$images_file" -o "$images_file"
+
+findings=0
+errors=0
+{
+  echo "===== Audit des images Docker ====="
+  date -Is
+  docker version --format 'Docker client={{.Client.Version}} serveur={{.Server.Version}}'
+  docker scout version
+  echo
+
+  while IFS= read -r image; do
+    [ -n "$image" ] || continue
+    echo "### $image"
+
+    if ! docker image inspect "$image" \
+      --format 'ID={{.Id}} Digests={{json .RepoDigests}} User={{json .Config.User}}' \
+      2>/dev/null; then
+      echo "ERREUR : image absente du stockage local"
+      errors=1
+      echo
+      continue
+    fi
+
+    rc=0
+    docker scout cves \
+      --exit-code \
+      --only-severity critical,high \
+      "local://$image" || rc=$?
+
+    case "$rc" in
+      0) ;;
+      2) findings=1 ;;
+      *) errors=1 ;;
+    esac
+    echo
+  done < "$images_file"
+
+  echo "===== Résultat ====="
+  echo "Vulnérabilités critiques ou élevées détectées : $findings"
+  echo "Erreurs d'analyse : $errors"
+} > "$REPORT" 2>&1
+
+chmod 0640 "$REPORT"
+chown root:adm "$REPORT" 2>/dev/null || true
+cat "$REPORT"
+
+[ "$errors" -eq 0 ] || exit 1
+[ "$findings" -eq 0 ] || exit 2

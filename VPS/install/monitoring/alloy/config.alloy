@@ -1,0 +1,68 @@
+logging {
+  level  = "info"
+  format = "logfmt"
+}
+
+loki.source.journal "systeme" {
+  max_age       = "24h"
+  labels        = {
+    source = "journal",
+  }
+  relabel_rules = loki.relabel.journal.rules
+  forward_to    = [loki.write.local.receiver]
+}
+
+loki.relabel "journal" {
+  forward_to = []
+
+  rule {
+    source_labels = ["__journal__systemd_unit"]
+    target_label  = "unit"
+  }
+
+  rule {
+    source_labels = ["__journal_syslog_identifier"]
+    target_label  = "syslog_identifier"
+  }
+
+  rule {
+    source_labels = ["__journal_container_name"]
+    target_label  = "container"
+  }
+
+  rule {
+    source_labels = ["__journal_image_name"]
+    target_label  = "image"
+  }
+
+  rule {
+    source_labels = ["__journal_priority_keyword"]
+    target_label  = "level"
+  }
+}
+
+local.file_match "nginx" {
+  path_targets = [
+    {
+      "__path__" = "/var/log/nginx/access.log",
+      source     = "nginx",
+      log_type   = "access",
+    },
+    {
+      "__path__" = "/var/log/nginx/error.log",
+      source     = "nginx",
+      log_type   = "error",
+    },
+  ]
+}
+
+loki.source.file "nginx" {
+  targets    = local.file_match.nginx.targets
+  forward_to = [loki.write.local.receiver]
+}
+
+loki.write "local" {
+  endpoint {
+    url = "http://127.0.0.1:3100/loki/api/v1/push"
+  }
+}

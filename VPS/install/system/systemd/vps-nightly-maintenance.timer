@@ -1,0 +1,12 @@
+[Unit]
+Description=Planification nocturne de la maintenance du VPS
+
+[Timer]
+OnCalendar=*-*-* 02:15:00
+AccuracySec=1m
+RandomizedDelaySec=10m
+Persistent=false
+Unit=vps-nightly-maintenance.service
+
+[Install]
+WantedBy=timers.target

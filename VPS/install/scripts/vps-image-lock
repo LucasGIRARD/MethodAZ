@@ -1,0 +1,153 @@
+#!/bin/sh
+set -eu
+
+STACK_ROOT=${STACK_ROOT:-/opt/selfhosted}
+SERVICES="databases linkwarden davis freshrss ttrss kill-newsletter web gateway monitoring"
+
+usage() {
+  echo "Usage : vps-image-lock {SERVICE|all}" >&2
+}
+
+[ "$(id -u)" -eq 0 ] || {
+  echo "Exécuter cette commande avec sudo ou comme root." >&2
+  exit 1
+}
+
+compose_base() {
+  stack=$1
+  service=$2
+  shift 2
+
+  case "$service" in
+    monitoring)
+      docker compose --project-directory "$stack" \
+        -f "$stack/docker-compose.yml" \
+        --profile containers --profile logs "$@"
+      ;;
+    gateway)
+      docker compose --project-directory "$stack" \
+        -f "$stack/docker-compose.yml" \
+        --profile manual "$@"
+      ;;
+    *)
+      docker compose --project-directory "$stack" \
+        -f "$stack/docker-compose.yml" "$@"
+      ;;
+  esac
+}
+
+compose_locked() {
+  stack=$1
+  service=$2
+  lock_file=$3
+  shift 3
+
+  case "$service" in
+    monitoring)
+      docker compose --project-directory "$stack" \
+        -f "$stack/docker-compose.yml" -f "$lock_file" \
+        --profile containers --profile logs "$@"
+      ;;
+    gateway)
+      docker compose --project-directory "$stack" \
+        -f "$stack/docker-compose.yml" -f "$lock_file" \
+        --profile manual "$@"
+      ;;
+    *)
+      docker compose --project-directory "$stack" \
+        -f "$stack/docker-compose.yml" -f "$lock_file" "$@"
+      ;;
+  esac
+}
+
+lock_service() {
+  service=$1
+  stack="$STACK_ROOT/$service"
+  compose_file="$stack/docker-compose.yml"
+  lock_file="$stack/docker-compose.lock.yml"
+
+  [ -f "$compose_file" ] || {
+    echo "Projet ignoré, fichier Compose absent : $stack" >&2
+    return 0
+  }
+
+  if [ "$service" = kill-newsletter ]; then
+    rm -f "$lock_file"
+    echo "kill-newsletter est construit localement : verrouiller son commit et les images FROM du Dockerfile."
+    return 0
+  fi
+
+  if [ "$service" = web ]; then
+    base_image=$(
+      sed -n 's/^PHP_BASE_IMAGE=//p' "$stack/.env" 2>/dev/null \
+        | tail -n 1
+    )
+    [ -n "$base_image" ] || {
+      echo "PHP_BASE_IMAGE est absent de $stack/.env" >&2
+      return 1
+    }
+
+    echo "Téléchargement de l'image PHP officielle : $base_image"
+    docker pull "$base_image"
+    base_digest=$(
+      docker image inspect "$base_image" \
+        --format '{{index .RepoDigests 0}}'
+    )
+    [ -n "$base_digest" ] || {
+      echo "Digest introuvable pour $base_image" >&2
+      return 1
+    }
+
+    tmp=$(mktemp "$stack/.docker-compose.lock.yml.XXXXXX")
+    trap 'rm -f "${tmp:-}"' EXIT HUP INT TERM
+    cat > "$tmp" <<EOF
+services:
+  app:
+    build:
+      args:
+        PHP_BASE_IMAGE: $base_digest
+EOF
+    compose_locked "$stack" "$service" "$tmp" config --quiet
+    compose_locked "$stack" "$service" "$tmp" build
+
+    install -m 0640 -o root -g root "$tmp" "$lock_file"
+    rm -f "$tmp"
+    tmp=
+    trap - EXIT HUP INT TERM
+    echo "Verrou de l'image PHP de base créé : $lock_file"
+    return 0
+  fi
+
+  tmp=$(mktemp "$stack/.docker-compose.lock.yml.XXXXXX")
+  trap 'rm -f "${tmp:-}"' EXIT HUP INT TERM
+
+  echo "Téléchargement des images de $service"
+  compose_base "$stack" "$service" pull
+
+  echo "Résolution des digests de $service"
+  compose_base "$stack" "$service" config --lock-image-digests > "$tmp"
+  compose_locked "$stack" "$service" "$tmp" config --quiet
+
+  install -m 0640 -o root -g root "$tmp" "$lock_file"
+  rm -f "$tmp"
+  tmp=
+  trap - EXIT HUP INT TERM
+
+  echo "Verrou créé : $lock_file"
+}
+
+target=${1:-}
+case "$target" in
+  all)
+    for service in $SERVICES; do
+      lock_service "$service"
+    done
+    ;;
+  databases|linkwarden|davis|freshrss|ttrss|kill-newsletter|web|gateway|monitoring)
+    lock_service "$target"
+    ;;
+  *)
+    usage
+    exit 2
+    ;;
+esac

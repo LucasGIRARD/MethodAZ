@@ -1,0 +1,101 @@
+#!/bin/sh
+set -eu
+
+STACK_DIR=${STACK_DIR:-/opt/selfhosted/gateway}
+cd "$STACK_DIR"
+
+set -a
+# shellcheck disable=SC1091
+. "$STACK_DIR/.env"
+set +a
+
+compose() {
+  if [ -f "$STACK_DIR/docker-compose.lock.yml" ]; then
+    docker compose --project-directory "$STACK_DIR" \
+      -f "$STACK_DIR/docker-compose.yml" \
+      -f "$STACK_DIR/docker-compose.lock.yml" "$@"
+  else
+    docker compose --project-directory "$STACK_DIR" \
+      -f "$STACK_DIR/docker-compose.yml" "$@"
+  fi
+}
+
+start_http() {
+  install -d -m 0750 \
+    nginx/generated nginx/auth certbot/conf certbot/lib certbot/www \
+    certbot/logs logs/nginx
+  if [ -f nginx/templates/10-services.conf.template ]; then
+    rm -f nginx/templates/00-http-bootstrap.conf.template
+  fi
+  rm -f nginx/generated/*.conf
+  compose config --quiet
+  compose up -d nginx
+  compose exec nginx nginx -t
+}
+
+issue_certificate() {
+  compose run --rm certbot certonly \
+    --webroot \
+    --webroot-path /var/www/certbot \
+    --email "$ADMIN_EMAIL" \
+    --agree-tos \
+    --no-eff-email \
+    --cert-name vps-services \
+    -d "$LINKWARDEN_DOMAIN" \
+    -d "$DAVIS_DOMAIN" \
+    -d "$FRESHRSS_DOMAIN" \
+    -d "$TTRSS_DOMAIN" \
+    -d "$NEWSLETTER_DOMAIN" \
+    -d "$WEB_DOMAIN" \
+    -d "$MONITORING_DOMAIN"
+}
+
+enable_tls() {
+  certificate="certbot/conf/live/vps-services/fullchain.pem"
+  [ -s "$certificate" ] || {
+    echo "Certificat absent : $certificate" >&2
+    exit 1
+  }
+
+  rm -f nginx/templates/00-http-bootstrap.conf.template
+  install -m 0644 \
+    nginx/templates-disabled/00-http.conf.template \
+    nginx/templates/00-http.conf.template
+  install -m 0644 \
+    nginx/templates-disabled/10-services.conf.template \
+    nginx/templates/10-services.conf.template
+
+  rm -f nginx/generated/*.conf
+  compose up -d --force-recreate nginx
+  compose exec nginx nginx -t
+}
+
+case "${1:-status}" in
+  start-http)
+    start_http
+    ;;
+  issue-certificate)
+    issue_certificate
+    ;;
+  enable-tls)
+    enable_tls
+    ;;
+  renew)
+    compose run --rm certbot renew
+    compose exec nginx nginx -s reload
+    ;;
+  test)
+    compose config --quiet
+    compose exec nginx nginx -t
+    ;;
+  status)
+    compose --profile manual ps
+    ;;
+  logs)
+    compose logs --tail=200 nginx
+    ;;
+  *)
+    echo "Usage : $0 {start-http|issue-certificate|enable-tls|renew|test|status|logs}" >&2
+    exit 2
+    ;;
+esac

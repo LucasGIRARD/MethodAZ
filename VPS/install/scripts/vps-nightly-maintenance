@@ -1,0 +1,53 @@
+#!/bin/sh
+set -u
+
+failures=0
+
+run_task() {
+  name=$1
+  shift
+  echo
+  echo "===== $name ====="
+  if "$@"; then
+    echo "OK : $name"
+  else
+    rc=$?
+    echo "ÉCHEC ($rc) : $name" >&2
+    failures=1
+  fi
+}
+
+echo "===== Maintenance nocturne du VPS ====="
+date -Is
+
+run_task "Sauvegarde" /usr/local/sbin/vps-backup
+
+if [ -x /usr/local/sbin/vps-gateway ]; then
+  run_task "Renouvellement Certbot" /usr/local/sbin/vps-gateway renew
+fi
+
+if [ "$(date +%u)" -eq 7 ] && docker scout version >/dev/null 2>&1; then
+  echo
+  echo "===== Audit hebdomadaire des images ====="
+  /usr/local/sbin/vps-image-audit
+  rc=$?
+  case "$rc" in
+    0) echo "OK : audit des images" ;;
+    2) echo "Alerte : vulnérabilités élevées ou critiques détectées." >&2 ;;
+    *) echo "ÉCHEC ($rc) : audit des images" >&2; failures=1 ;;
+  esac
+fi
+
+run_task "Rapport d'état" /usr/local/sbin/vps-health-report
+
+for script in \
+  /usr/local/sbin/check-kernel-reboot.sh \
+  /usr/local/sbin/check-certificates.sh; do
+  [ -x "$script" ] || continue
+  run_task "Rapport $(basename "$script")" "$script"
+done
+
+echo
+echo "===== Fin de maintenance ====="
+date -Is
+exit "$failures"

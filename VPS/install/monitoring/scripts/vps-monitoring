@@ -1,0 +1,84 @@
+#!/bin/sh
+set -eu
+
+STACK_DIR=${STACK_DIR:-/opt/selfhosted/monitoring}
+FLAG_FILE=${FLAG_FILE:-/etc/default/vps-monitoring}
+
+if [ -r "$FLAG_FILE" ]; then
+  # shellcheck disable=SC1090
+  . "$FLAG_FILE"
+fi
+
+ENABLE_LOGS=${ENABLE_LOGS:-false}
+ENABLE_CONTAINER_METRICS=${ENABLE_CONTAINER_METRICS:-false}
+ENABLE_LOCAL_METRICS=${ENABLE_LOCAL_METRICS:-true}
+
+compose() {
+  if [ -f "$STACK_DIR/docker-compose.lock.yml" ]; then
+    docker compose --project-directory "$STACK_DIR" \
+      -f "$STACK_DIR/docker-compose.yml" \
+      -f "$STACK_DIR/docker-compose.lock.yml" "$@"
+  else
+    docker compose --project-directory "$STACK_DIR" \
+      -f "$STACK_DIR/docker-compose.yml" "$@"
+  fi
+}
+
+apply_stack() {
+  compose up -d grafana prometheus node-exporter
+
+  case "$ENABLE_CONTAINER_METRICS" in
+    true|TRUE|1|yes|YES)
+      compose --profile containers up -d cadvisor
+      ;;
+    *)
+      compose --profile containers stop cadvisor >/dev/null 2>&1 || true
+      compose --profile containers rm -f cadvisor >/dev/null 2>&1 || true
+      ;;
+  esac
+
+  case "$ENABLE_LOGS" in
+    true|TRUE|1|yes|YES)
+      compose --profile logs up -d loki alloy
+      ;;
+    *)
+      compose --profile logs stop alloy loki >/dev/null 2>&1 || true
+      compose --profile logs rm -f alloy loki loki-init >/dev/null 2>&1 || true
+      ;;
+  esac
+
+  case "$ENABLE_LOCAL_METRICS" in
+    true|TRUE|1|yes|YES)
+      if [ -x /usr/local/sbin/vps-local-metrics ]; then
+        /usr/local/sbin/vps-local-metrics
+      fi
+      ;;
+  esac
+}
+
+case "${1:-apply}" in
+  apply|start)
+    apply_stack
+    ;;
+  restart)
+    compose restart grafana prometheus node-exporter
+    apply_stack
+    ;;
+  stop)
+    compose --profile containers --profile logs down
+    ;;
+  status)
+    compose --profile containers --profile logs ps
+    ;;
+  logs)
+    if [ "$#" -gt 1 ]; then
+      compose --profile containers --profile logs logs --tail=200 "$2"
+    else
+      compose --profile containers --profile logs logs --tail=200
+    fi
+    ;;
+  *)
+    echo "Usage : $0 {apply|start|restart|stop|status|logs [service]}" >&2
+    exit 2
+    ;;
+esac

@@ -1,0 +1,98 @@
+name: databases
+
+services:
+  mariadb:
+    image: mariadb:${MARIADB_VERSION}
+    restart: unless-stopped
+    command:
+      - --max-connections=80
+      - --innodb-buffer-pool-size=192M
+      - --performance-schema=OFF
+    environment:
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ADMIN_PASSWORD}
+      DAVIS_DB_PASSWORD: ${DAVIS_DB_PASSWORD}
+      FRESHRSS_DB_PASSWORD: ${FRESHRSS_DB_PASSWORD}
+      WEB_DB_PASSWORD: ${WEB_DB_PASSWORD}
+    volumes:
+      - ./mariadb:/var/lib/mysql
+      - ./init-mariadb.sh:/docker-entrypoint-initdb.d/10-applications.sh:ro
+      - ./init-mariadb.sh:/usr/local/sbin/reconcile-applications:ro
+    networks:
+      davis:
+        aliases:
+          - mariadb
+      freshrss:
+        aliases:
+          - mariadb
+      web:
+        aliases:
+          - mariadb
+    healthcheck:
+      test:
+        - CMD
+        - healthcheck.sh
+        - --connect
+        - --innodb_initialized
+      interval: 10s
+      timeout: 5s
+      retries: 15
+    pids_limit: 256
+    security_opt:
+      - no-new-privileges:true
+
+  postgres:
+    image: postgres:${POSTGRES_VERSION}
+    restart: unless-stopped
+    command:
+      - postgres
+      - -c
+      - max_connections=80
+      - -c
+      - shared_buffers=192MB
+      - -c
+      - work_mem=4MB
+      - -c
+      - maintenance_work_mem=64MB
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD}
+      LINKWARDEN_DB_PASSWORD: ${LINKWARDEN_DB_PASSWORD}
+      TTRSS_DB_PASSWORD: ${TTRSS_DB_PASSWORD}
+    volumes:
+      - ./postgres:/var/lib/postgresql/data
+      - ./init-postgres.sh:/docker-entrypoint-initdb.d/10-applications.sh:ro
+      - ./init-postgres.sh:/usr/local/sbin/reconcile-applications:ro
+    networks:
+      linkwarden:
+        aliases:
+          - postgres
+      ttrss:
+        aliases:
+          - postgres
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U postgres -d postgres
+      interval: 10s
+      timeout: 5s
+      retries: 15
+    pids_limit: 256
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  davis:
+    name: ${DATABASE_NETWORK_PREFIX:-vps-db}-davis
+    internal: true
+  freshrss:
+    name: ${DATABASE_NETWORK_PREFIX:-vps-db}-freshrss
+    internal: true
+  web:
+    name: ${DATABASE_NETWORK_PREFIX:-vps-db}-web
+    internal: true
+  linkwarden:
+    name: ${DATABASE_NETWORK_PREFIX:-vps-db}-linkwarden
+    internal: true
+  ttrss:
+    name: ${DATABASE_NETWORK_PREFIX:-vps-db}-ttrss
+    internal: true

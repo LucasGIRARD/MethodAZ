@@ -1,0 +1,60 @@
+name: gateway
+
+services:
+  nginx:
+    image: nginx:${NGINX_VERSION}
+    network_mode: host
+    restart: unless-stopped
+    environment:
+      NGINX_ENTRYPOINT_QUIET_LOGS: "1"
+      LINKWARDEN_DOMAIN: ${LINKWARDEN_DOMAIN}
+      DAVIS_DOMAIN: ${DAVIS_DOMAIN}
+      FRESHRSS_DOMAIN: ${FRESHRSS_DOMAIN}
+      TTRSS_DOMAIN: ${TTRSS_DOMAIN}
+      NEWSLETTER_DOMAIN: ${NEWSLETTER_DOMAIN}
+      WEB_DOMAIN: ${WEB_DOMAIN}
+      MONITORING_DOMAIN: ${MONITORING_DOMAIN}
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/proxy-common.conf:/etc/nginx/proxy-common.conf:ro
+      - ./nginx/templates:/etc/nginx/templates:ro
+      - ./nginx/generated:/etc/nginx/conf.d
+      - ./nginx/auth:/etc/nginx/auth:ro
+      - ./certbot/conf:/etc/letsencrypt:ro
+      - ./certbot/www:/var/www/certbot:ro
+      - ./logs/nginx:/var/log/nginx
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+      - /tmp
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - KILL
+      - NET_BIND_SERVICE
+      - SETGID
+      - SETUID
+    pids_limit: 256
+    security_opt:
+      - no-new-privileges:true
+
+  certbot:
+    image: certbot/certbot:${CERTBOT_VERSION}
+    profiles:
+      - manual
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/lib:/var/lib/letsencrypt
+      - ./certbot/www:/var/www/certbot
+      - ./certbot/logs:/var/log/letsencrypt
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    pids_limit: 128
+    security_opt:
+      - no-new-privileges:true

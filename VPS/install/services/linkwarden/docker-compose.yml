@@ -1,0 +1,28 @@
+name: linkwarden
+
+services:
+  app:
+    image: ghcr.io/linkwarden/linkwarden:${LINKWARDEN_VERSION}
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3001:3000"
+    environment:
+      DATABASE_URL: postgresql://linkwarden:${LINKWARDEN_DB_PASSWORD}@postgres:5432/linkwarden
+      NEXTAUTH_SECRET: ${LINKWARDEN_NEXTAUTH_SECRET}
+      NEXTAUTH_URL: ${LINKWARDEN_URL}
+      NEXT_PUBLIC_DISABLE_REGISTRATION: ${LINKWARDEN_DISABLE_REGISTRATION}
+      TZ: ${TIMEZONE}
+    volumes:
+      - ./data:/data/data
+    networks:
+      - frontend
+      - database
+    pids_limit: 256
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  frontend:
+  database:
+    external: true
+    name: ${DATABASE_NETWORK_PREFIX:-vps-db}-linkwarden

@@ -1,0 +1,17 @@
+/opt/selfhosted/gateway/logs/nginx/*.log {
+    daily
+    rotate 14
+    maxage 30
+    maxsize 50M
+    missingok
+    notifempty
+    compress
+    delaycompress
+    dateext
+    create 0640 root adm
+    su root adm
+    sharedscripts
+    postrotate
+        /usr/bin/docker compose -f /opt/selfhosted/gateway/docker-compose.yml kill -s USR1 nginx >/dev/null 2>&1 || true
+    endscript
+}

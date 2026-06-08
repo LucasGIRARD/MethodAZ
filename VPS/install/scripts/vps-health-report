@@ -1,0 +1,59 @@
+#!/bin/sh
+set -u
+
+REPORT_DIR=${REPORT_DIR:-/var/log/server-checks}
+REPORT=${REPORT:-$REPORT_DIR/health-report.txt}
+
+[ "$(id -u)" -eq 0 ] || {
+  echo "Exécuter cette commande avec sudo ou comme root." >&2
+  exit 1
+}
+
+mkdir -p "$REPORT_DIR"
+
+{
+  echo "===== État du VPS ====="
+  date -Is
+  echo
+
+  echo "===== Charge et mémoire ====="
+  uptime
+  free -h
+  echo
+
+  echo "===== Disques ====="
+  df -h /
+  journalctl --disk-usage 2>/dev/null || true
+  echo
+
+  echo "===== Redémarrage ====="
+  if [ -f /run/reboot-required ]; then
+    cat /run/reboot-required
+    [ -f /run/reboot-required.pkgs ] && cat /run/reboot-required.pkgs
+  else
+    echo "Non requis"
+  fi
+  echo
+
+  echo "===== Unités systemd en échec ====="
+  systemctl --failed --no-pager || true
+  echo
+
+  echo "===== Docker ====="
+  docker ps --format 'table {{.Names}}\t{{.Image}}\t{{.Status}}' || true
+  docker system df || true
+  echo
+
+  echo "===== Fail2ban ====="
+  fail2ban-client status 2>/dev/null || true
+  echo
+
+  echo "===== Timers de maintenance ====="
+  systemctl list-timers --no-pager \
+    vps-nightly-maintenance.timer vps-local-metrics.timer \
+    apt-daily.timer apt-daily-upgrade.timer || true
+} > "$REPORT"
+
+chmod 0640 "$REPORT"
+chown root:adm "$REPORT" 2>/dev/null || true
+cat "$REPORT"

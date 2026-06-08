@@ -1,0 +1,214 @@
+{
+  "main": {
+    "id": "a16773814690bd7e",
+    "type": "split",
+    "children": [
+      {
+        "id": "b0e6af516588e2db",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "a17f1dfb26e1fa02",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "VPS/docs/01-vps-base.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "01-vps-base"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "aac4606bc900648b",
+    "type": "split",
+    "children": [
+      {
+        "id": "97996355d1d8778b",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "594b4f8ba51b43e3",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Explorateur de fichiers"
+            }
+          },
+          {
+            "id": "132004aed737adaa",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "Checklist finale",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Rechercher"
+            }
+          },
+          {
+            "id": "cda7c18ceccf7946",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "Signets"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 200
+  },
+  "right": {
+    "id": "70de83dbb27182f9",
+    "type": "split",
+    "children": [
+      {
+        "id": "823fbbf4fe37c78d",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "40bdc7dc4a768af8",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "refs/charte-graphique.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Rétrolien pour charte-graphique"
+            }
+          },
+          {
+            "id": "92c7101c3ec2b09e",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "refs/charte-graphique.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Liens sortants de charte-graphique"
+            }
+          },
+          {
+            "id": "d4ee06fa98329a41",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Mots-clés"
+            }
+          },
+          {
+            "id": "7a7ab56818d677be",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "Toutes les propriétés"
+            }
+          },
+          {
+            "id": "2eb8d5f17abe9a4d",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "VPS/docs/01-vps-base.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Plan de 01-vps-base"
+            }
+          },
+          {
+            "id": "c694544bfeb9cbd5",
+            "type": "leaf",
+            "state": {
+              "type": "file-properties",
+              "state": {
+                "file": "refs/couleurs.md"
+              },
+              "icon": "lucide-info",
+              "title": "Propriétés du fichier pour couleurs"
+            }
+          },
+          {
+            "id": "52aab8bce7a19003",
+            "type": "leaf",
+            "state": {
+              "type": "mermaid-toolbar-view",
+              "state": {},
+              "icon": "trident-custom",
+              "title": "Mermaid Toolbar"
+            }
+          }
+        ],
+        "currentTab": 4
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "mermaid-tools:Open Mermaid Toolbar": false,
+      "switcher:Ouvrir le sélecteur rapide": false,
+      "graph:Ouvrir la vue graphique": false,
+      "canvas:Créer une nouvelle toile": false,
+      "daily-notes:Ouvrir la note quotidienne": false,
+      "templates:Insérer le modèle": false,
+      "command-palette:Ouvrir la palette de commandes": false,
+      "bases:Créer une nouvelle base": false
+    }
+  },
+  "active": "a17f1dfb26e1fa02",
+  "lastOpenFiles": [
+    "VPS/install/local/work/web/Dockerfile",
+    "VPS/install/local/work/databases/README.md"    
+  ]
+}

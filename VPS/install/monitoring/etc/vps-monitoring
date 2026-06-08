@@ -1,0 +1,9 @@
+# Active ou désactive l'indexation et l'affichage des journaux dans Grafana.
+# Les journaux locaux restent gérés par journald et sa rotation.
+ENABLE_LOGS=false
+
+# cAdvisor accède au socket Docker et reste donc désactivé par défaut.
+ENABLE_CONTAINER_METRICS=false
+
+# Publie toutes les 15 minutes quelques indicateurs locaux dans Node Exporter.
+ENABLE_LOCAL_METRICS=true

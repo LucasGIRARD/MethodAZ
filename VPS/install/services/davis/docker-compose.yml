@@ -1,0 +1,30 @@
+name: davis
+
+services:
+  app:
+    image: ghcr.io/tchapi/davis-standalone:${DAVIS_VERSION}
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3002:9000"
+    environment:
+      APP_ENV: prod
+      APP_SECRET: ${DAVIS_APP_SECRET}
+      DATABASE_URL: "mysql://davis:${DAVIS_DB_PASSWORD}@mariadb:3306/davis?serverVersion=${MARIADB_SERVER_VERSION:-11.8.8-MariaDB}&charset=utf8mb4"
+      ADMIN_LOGIN: admin
+      ADMIN_PASSWORD: ${DAVIS_ADMIN_PASSWORD}
+      AUTH_REALM: Davis
+      TZ: ${TIMEZONE}
+    volumes:
+      - ./data:/data
+    networks:
+      - frontend
+      - database
+    pids_limit: 256
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  frontend:
+  database:
+    external: true
+    name: ${DATABASE_NETWORK_PREFIX:-vps-db}-davis

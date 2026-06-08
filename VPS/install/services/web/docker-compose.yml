@@ -1,0 +1,33 @@
+name: web
+
+services:
+  app:
+    build:
+      context: .
+      args:
+        PHP_BASE_IMAGE: ${PHP_BASE_IMAGE}
+    image: vps-web:${WEB_IMAGE_TAG}
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3006:80"
+    volumes:
+      - ./html:/var/www/html
+      - ./apache/000-default.conf:/etc/apache2/sites-available/000-default.conf:ro
+    environment:
+      DB_HOST: mariadb
+      DB_PORT: "3306"
+      DB_NAME: web
+      DB_USER: web
+      DB_PASSWORD: ${WEB_DB_PASSWORD}
+    networks:
+      - frontend
+      - database
+    pids_limit: 256
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  frontend:
+  database:
+    external: true
+    name: ${DATABASE_NETWORK_PREFIX:-vps-db}-web

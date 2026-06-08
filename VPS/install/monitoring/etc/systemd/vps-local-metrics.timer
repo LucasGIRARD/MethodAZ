@@ -1,0 +1,12 @@
+[Unit]
+Description=Publication périodique des métriques locales du VPS
+
+[Timer]
+OnBootSec=5m
+OnUnitActiveSec=15m
+AccuracySec=1m
+Persistent=false
+Unit=vps-local-metrics.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,99 @@
+#!/bin/sh
+set -eu
+export LC_ALL=C
+
+FLAG_FILE=${FLAG_FILE:-/etc/default/vps-monitoring}
+OUTPUT_DIR=${OUTPUT_DIR:-/var/lib/node-exporter/textfile}
+OUTPUT_FILE="$OUTPUT_DIR/vps.prom"
+
+ENABLE_LOGS=false
+ENABLE_LOCAL_METRICS=true
+if [ -r "$FLAG_FILE" ]; then
+  # shellcheck disable=SC1090
+  . "$FLAG_FILE"
+fi
+
+case "${ENABLE_LOCAL_METRICS:-true}" in
+  true|TRUE|1|yes|YES) ;;
+  *)
+    rm -f "$OUTPUT_FILE"
+    exit 0
+    ;;
+esac
+
+case "${ENABLE_LOGS:-false}" in
+  true|TRUE|1|yes|YES) logs_enabled=1 ;;
+  *) logs_enabled=0 ;;
+esac
+
+if [ -e /var/run/reboot-required ]; then
+  reboot_required=1
+else
+  reboot_required=0
+fi
+
+if command -v apt-get >/dev/null 2>&1; then
+  apt_upgradable=$(apt-get -s -o Debug::NoLocking=true upgrade 2>/dev/null \
+    | awk '/^[0-9]+ upgraded,/{print $1; exit}')
+  apt_upgradable=${apt_upgradable:-0}
+else
+  apt_upgradable=0
+fi
+
+if command -v systemctl >/dev/null 2>&1; then
+  failed_units=$(systemctl --failed --no-legend --plain 2>/dev/null | awk 'NF {count++} END {print count+0}')
+else
+  failed_units=0
+fi
+
+if command -v docker >/dev/null 2>&1; then
+  docker_running=$(docker ps -q 2>/dev/null | awk 'NF {count++} END {print count+0}')
+  docker_total=$(docker ps -aq 2>/dev/null | awk 'NF {count++} END {print count+0}')
+else
+  docker_running=0
+  docker_total=0
+fi
+
+fail2ban_banned=0
+if command -v fail2ban-client >/dev/null 2>&1; then
+  jails=$(fail2ban-client status 2>/dev/null \
+    | sed -n 's/.*Jail list:[[:space:]]*//p' \
+    | tr ',' ' ')
+  for jail in $jails; do
+    banned=$(fail2ban-client status "$jail" 2>/dev/null \
+      | awk -F: '/Currently banned/ {gsub(/[[:space:]]/, "", $2); print $2; exit}')
+    fail2ban_banned=$((fail2ban_banned + ${banned:-0}))
+  done
+fi
+
+install -d -m 0755 "$OUTPUT_DIR"
+temporary=$(mktemp "$OUTPUT_DIR/.vps.prom.XXXXXX")
+trap 'rm -f "$temporary"' EXIT HUP INT TERM
+
+{
+  echo "# HELP vps_logs_enabled Indique si Loki et Alloy sont activés."
+  echo "# TYPE vps_logs_enabled gauge"
+  echo "vps_logs_enabled $logs_enabled"
+  echo "# HELP vps_reboot_required Indique si Debian demande un redémarrage."
+  echo "# TYPE vps_reboot_required gauge"
+  echo "vps_reboot_required $reboot_required"
+  echo "# HELP vps_apt_upgradable Nombre de paquets pouvant être mis à jour."
+  echo "# TYPE vps_apt_upgradable gauge"
+  echo "vps_apt_upgradable $apt_upgradable"
+  echo "# HELP vps_systemd_failed_units Nombre d'unités systemd en échec."
+  echo "# TYPE vps_systemd_failed_units gauge"
+  echo "vps_systemd_failed_units $failed_units"
+  echo "# HELP vps_docker_containers_running Nombre de conteneurs Docker en cours."
+  echo "# TYPE vps_docker_containers_running gauge"
+  echo "vps_docker_containers_running $docker_running"
+  echo "# HELP vps_docker_containers_total Nombre total de conteneurs Docker."
+  echo "# TYPE vps_docker_containers_total gauge"
+  echo "vps_docker_containers_total $docker_total"
+  echo "# HELP vps_fail2ban_banned_current Nombre actuel d'adresses bannies par Fail2ban."
+  echo "# TYPE vps_fail2ban_banned_current gauge"
+  echo "vps_fail2ban_banned_current $fail2ban_banned"
+} > "$temporary"
+
+chmod 0644 "$temporary"
+mv -f "$temporary" "$OUTPUT_FILE"
+trap - EXIT HUP INT TERM

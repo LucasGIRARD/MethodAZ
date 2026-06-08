@@ -1,0 +1,27 @@
+/var/log/server-checks/*.txt /var/log/server-checks/*.log {
+    daily
+    rotate 14
+    maxage 30
+    maxsize 10M
+    missingok
+    notifempty
+    compress
+    delaycompress
+    dateext
+    create 0640 root adm
+    su root adm
+}
+
+/var/log/server-checks/docker-images/*.txt {
+    weekly
+    rotate 8
+    maxage 60
+    maxsize 50M
+    missingok
+    notifempty
+    compress
+    delaycompress
+    dateext
+    create 0640 root adm
+    su root adm
+}

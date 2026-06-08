@@ -1,0 +1,83 @@
+name: ttrss
+
+services:
+  app:
+    image: ${TTRSS_IMAGE}
+    restart: unless-stopped
+    environment:
+      TTRSS_DB_TYPE: pgsql
+      TTRSS_DB_HOST: postgres
+      TTRSS_DB_NAME: ttrss
+      TTRSS_DB_USER: ttrss
+      TTRSS_DB_PASS: ${TTRSS_DB_PASSWORD}
+      TTRSS_SELF_URL_PATH: ${TTRSS_URL}
+      ADMIN_USER_PASS: ${TTRSS_ADMIN_PASSWORD}
+      OWNER_UID: "1000"
+      OWNER_GID: "1000"
+    volumes:
+      - ./app:/var/www/html
+    networks:
+      - internal
+      - database
+    pids_limit: 256
+    security_opt:
+      - no-new-privileges:true
+
+  updater:
+    image: ${TTRSS_IMAGE}
+    restart: unless-stopped
+    depends_on:
+      - app
+    command: /opt/tt-rss/updater.sh
+    environment:
+      TTRSS_DB_TYPE: pgsql
+      TTRSS_DB_HOST: postgres
+      TTRSS_DB_NAME: ttrss
+      TTRSS_DB_USER: ttrss
+      TTRSS_DB_PASS: ${TTRSS_DB_PASSWORD}
+      TTRSS_SELF_URL_PATH: ${TTRSS_URL}
+      OWNER_UID: "1000"
+      OWNER_GID: "1000"
+    volumes:
+      - ./app:/var/www/html
+    networks:
+      - internal
+      - database
+    pids_limit: 128
+    security_opt:
+      - no-new-privileges:true
+
+  nginx:
+    image: nginx:${NGINX_ALPINE_VERSION}
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "127.0.0.1:3004:80"
+    volumes:
+      - ./app:/var/www/html:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - internal
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - NET_BIND_SERVICE
+      - SETGID
+      - SETUID
+    pids_limit: 128
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  internal:
+    internal: true
+  database:
+    external: true
+    name: ${DATABASE_NETWORK_PREFIX:-vps-db}-ttrss

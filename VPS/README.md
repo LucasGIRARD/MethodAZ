@@ -1,0 +1,102 @@
+# VPS auto-hébergé
+
+Documentation d'installation et de maintenance d'un VPS Debian 13 « Trixie »
+avec Docker, Nginx, Certbot, rapports de contrôle et services auto-hébergés.
+
+## Parcours recommandé
+
+Lire et appliquer les documents dans cet ordre :
+
+1. [Contexte et hypothèses](docs/00-contexte-et-hypotheses.md)
+2. [Test local avec Docker Compose](docs/test-local-docker.md)
+3. [Installation automatisée](docs/installation-automatisee.md)
+4. [Base VPS Debian](01-vps-base.md)
+5. [Docker](docs/02-docker.md)
+6. [Bases de données partagées](docs/bases-donnees-partagees.md)
+7. [Services Docker](docs/03-services-docker.md)
+8. [Nginx et Certbot dans Docker](docs/04-nginx-certbot.md)
+9. [Supervision et rapports](docs/05-supervision-rapports.md)
+10. [Dashboard d'observabilité](docs/05-dashboard-observabilite.md)
+11. [Maintenance et mises à jour](docs/06-maintenance-mises-a-jour.md)
+12. [Commandes utiles](docs/07-commandes-utiles.md)
+13. [Annexe : référentiel des ports réseau](docs/08-annexe-ports.md)
+14. [Protection contre les scans et limitation Nginx](docs/09-protection-scans-rate-limit.md)
+15. [Journalisation, rotation et rétention](docs/10-journalisation-rotation.md)
+16. [Sécurité des images Docker](docs/securite-images-docker.md)
+17. [Dimensionnement du VPS IONOS](docs/dimensionnement-vps-ionos.md)
+
+## Décisions actives
+
+- Système : dernière Debian stable, actuellement Debian 13.5 « Trixie ».
+- Pare-feu : commandes `iptables`/`ip6tables` avec le frontal nftables de Debian.
+- Persistance du pare-feu : `iptables-persistent` et `netfilter-persistent`.
+- Proxy inverse public : Nginx conteneurisé avec le réseau de l'hôte.
+- Certificats TLS : Certbot conteneurisé en mode `webroot`.
+- Répertoire applicatif : `/opt/selfhosted`.
+- Bases SQL : une MariaDB officielle partagée par trois applications et une
+  PostgreSQL officielle partagée par deux applications, sans port publié.
+- Ports applicatifs Docker : publiés seulement sur `127.0.0.1`.
+- Port SSH personnalisé : valeur réelle secrète, représentée publiquement par `**000`.
+- SFTP : compte séparé, sans shell, chrooté et authentifié par clé sur le port
+  SSH.
+- Installation : script Bash rejouable par phases, configuration publique et
+  secrets séparés.
+- Supervision web : Grafana, Prometheus et Node Exporter dans un projet Docker
+  Compose lié uniquement à `127.0.0.1`. cAdvisor est facultatif.
+- Journaux dans Grafana : Loki et Alloy facultatifs, contrôlés par
+  `/etc/default/vps-monitoring`.
+- Mises à jour Docker : vérification et mise à jour manuelle, sans mise à jour automatique aveugle.
+- Images Docker : tags précis, verrouillage local par digest et audit des CVE
+  avec Docker Scout.
+- Journaux : rotation et rétention bornées pour journald, Docker, Nginx,
+  Fail2ban, Certbot, msmtp et les rapports locaux.
+- Maintenance : sauvegarde et contrôles démarrés vers `02:15`, puis mises à
+  jour Debian à `04:15` et `04:45`, selon le fuseau `Europe/Paris`.
+
+## Installation rapide
+
+```bash
+cp install/config/vps.env.example install/config/vps.env
+nano install/config/vps.env
+sh install/scripts/generate-secrets.sh
+sudo sh install/scripts/vps-install.sh --phase all
+```
+
+Le premier passage conserve temporairement le port SSH 22 avec root limité à
+l'authentification par clé. Après validation de SSH et SFTP sur le port réel,
+la finalisation désactive totalement la connexion root :
+
+```bash
+sudo vps-install --finalize-ssh
+```
+
+## Variables à remplacer
+
+```bash
+DOMAIN="example.fr"
+MONITORING_DOMAIN="monitoring.example.fr"
+SERVER_IP="IP_DU_SERVEUR"
+SSH_PORT="**000"
+ADMIN_USER="lucas"
+EMAIL_ADMIN="contact@example.fr"
+TZ="Europe/Paris"
+```
+
+`**000` est volontairement masqué. Cette valeur ne doit pas être exécutée ni
+copiée telle quelle : elle doit être remplacée localement par le port SSH réel.
+
+## Sous-domaines prévus
+
+```text
+links.example.fr       Linkwarden
+dav.example.fr         Davis / CalDAV / CardDAV / WebDAV
+newsletter.example.fr  Kill the Newsletter
+freshrss.example.fr    FreshRSS
+ttrss.example.fr       Tiny Tiny RSS
+web.example.fr         Hébergement PHP/MySQL/HTML
+```
+
+## Archives
+
+Les anciennes notes et les brouillons sont conservés sous [docs/archive](docs/archive/README.md).
+Ils servent d'historique, mais ne font plus partie de la procédure active.

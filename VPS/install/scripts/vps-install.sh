@@ -1,0 +1,731 @@
+#!/bin/sh
+set -eu
+export LC_ALL=C
+
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+INSTALL_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
+CONFIG="$INSTALL_DIR/config/vps.env"
+SECRETS="$INSTALL_DIR/config/secrets.env"
+PHASE=all
+FINALIZE_SSH=false
+
+usage() {
+  cat <<'EOF'
+Usage : vps-install.sh [options]
+
+Options :
+  --config FICHIER       Configuration publique.
+  --secrets FICHIER      Fichier de secrets.
+  --phase PHASE          all, base, ssh, firewall, docker, databases, services, gateway, monitoring.
+  --finalize-ssh         Retire l'écoute temporaire sur le port 22.
+  --help                 Affiche cette aide.
+EOF
+}
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --config)
+      CONFIG=$2
+      shift 2
+      ;;
+    --secrets)
+      SECRETS=$2
+      shift 2
+      ;;
+    --phase)
+      PHASE=$2
+      shift 2
+      ;;
+    --finalize-ssh)
+      FINALIZE_SSH=true
+      shift
+      ;;
+    --help|-h)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "Option inconnue : $1" >&2
+      usage >&2
+      exit 2
+      ;;
+  esac
+done
+
+log() {
+  printf '\n==> %s\n' "$*"
+}
+
+die() {
+  echo "Erreur : $*" >&2
+  exit 1
+}
+
+require_root() {
+  [ "$(id -u)" -eq 0 ] || die "exécuter ce script avec sudo ou comme root"
+}
+
+resolve_from_install() {
+  case "$1" in
+    /*) printf '%s\n' "$1" ;;
+    install/*) printf '%s\n' "$INSTALL_DIR/${1#install/}" ;;
+    *) printf '%s\n' "$INSTALL_DIR/$1" ;;
+  esac
+}
+
+load_configuration() {
+  [ -r "$CONFIG" ] || die "configuration absente : $CONFIG"
+  [ -r "$SECRETS" ] || die "secrets absents : $SECRETS"
+
+  secret_mode=$(stat -c '%a' "$SECRETS")
+  case "$secret_mode" in
+    400|600) ;;
+    *) die "le fichier $SECRETS doit avoir le mode 0600 ou 0400" ;;
+  esac
+
+  set -a
+  # shellcheck disable=SC1090
+  . "$CONFIG"
+  # shellcheck disable=SC1090
+  . "$SECRETS"
+  set +a
+
+  case "${SSH_PORT:-}" in
+    ''|*[!0-9]*) die "SSH_PORT doit être un nombre réel, jamais **000" ;;
+  esac
+  [ "$SSH_PORT" -ge 1024 ] && [ "$SSH_PORT" -le 65535 ] \
+    || die "SSH_PORT doit être compris entre 1024 et 65535"
+
+  : "${ADMIN_USER:?ADMIN_USER manquant}"
+  : "${ADMIN_SSH_KEY_FILE:?ADMIN_SSH_KEY_FILE manquant}"
+  : "${ADMIN_PASSWORD_HASH:?ADMIN_PASSWORD_HASH manquant}"
+  : "${TIMEZONE:?TIMEZONE manquant}"
+}
+
+check_debian() {
+  [ -r /etc/os-release ] || die "/etc/os-release absent"
+  # shellcheck disable=SC1091
+  . /etc/os-release
+  [ "${ID:-}" = debian ] || die "cette procédure cible Debian"
+  [ "${VERSION_ID:-}" = 13 ] || die "Debian 13 est requis, version détectée : ${VERSION_ID:-inconnue}"
+}
+
+stage_installer() {
+  staged=/opt/vps-install
+  if [ "$INSTALL_DIR" != "$staged" ]; then
+    install -d -m 0700 "$staged"
+    rsync -a --exclude 'config/vps.env' --exclude 'config/secrets.env' \
+      "$INSTALL_DIR/" "$staged/"
+    install -m 0600 "$CONFIG" "$staged/config/vps.env"
+    install -m 0600 "$SECRETS" "$staged/config/secrets.env"
+    chown -R root:root "$staged"
+  fi
+
+  cat > /usr/local/sbin/vps-install <<'EOF'
+#!/bin/sh
+exec /opt/vps-install/scripts/vps-install.sh "$@"
+EOF
+  chmod 0755 /usr/local/sbin/vps-install
+}
+
+install_base() {
+  log "Paquets de base et compte administrateur"
+  apt-get update
+  DEBIAN_FRONTEND=noninteractive apt-get full-upgrade -y
+  DEBIAN_FRONTEND=noninteractive apt-get install -y \
+    ca-certificates curl fail2ban git iptables iptables-persistent jq \
+    logrotate nano needrestart openssh-server openssl rsync sudo \
+    unattended-upgrades
+
+  stage_installer
+
+  install -d -m 0755 /var/log/journal /etc/systemd/journald.conf.d
+  install -m 0644 "$INSTALL_DIR/system/journald/10-retention.conf" \
+    /etc/systemd/journald.conf.d/10-retention.conf
+  install -m 0644 "$INSTALL_DIR/system/logrotate/server-checks" \
+    /etc/logrotate.d/server-checks
+  install -m 0644 "$INSTALL_DIR/system/apt/20auto-upgrades" \
+    /etc/apt/apt.conf.d/20auto-upgrades
+  install -m 0644 "$INSTALL_DIR/system/apt/52unattended-upgrades-local" \
+    /etc/apt/apt.conf.d/52unattended-upgrades-local
+
+  [ -f "/usr/share/zoneinfo/$TIMEZONE" ] \
+    || die "fuseau horaire inconnu : $TIMEZONE"
+  timedatectl set-timezone "$TIMEZONE"
+
+  install -d -m 0755 \
+    /etc/systemd/system/apt-daily.timer.d \
+    /etc/systemd/system/apt-daily-upgrade.timer.d
+  install -m 0644 \
+    "$INSTALL_DIR/system/systemd/apt-daily.timer.override.conf" \
+    /etc/systemd/system/apt-daily.timer.d/override.conf
+  install -m 0644 \
+    "$INSTALL_DIR/system/systemd/apt-daily-upgrade.timer.override.conf" \
+    /etc/systemd/system/apt-daily-upgrade.timer.d/override.conf
+
+  systemd-tmpfiles --create --prefix /var/log/journal
+  systemctl restart systemd-journald
+  systemctl daemon-reload
+  systemctl enable --now apt-daily.timer apt-daily-upgrade.timer
+
+  if ! id "$ADMIN_USER" >/dev/null 2>&1; then
+    useradd --create-home --shell /bin/bash "$ADMIN_USER"
+  fi
+  usermod -aG sudo "$ADMIN_USER"
+  usermod --password "$ADMIN_PASSWORD_HASH" "$ADMIN_USER"
+
+  admin_key=$(resolve_from_install "$ADMIN_SSH_KEY_FILE")
+  [ -s "$admin_key" ] || die "clé publique administrateur absente : $admin_key"
+  install -d -m 0700 -o "$ADMIN_USER" -g "$ADMIN_USER" "/home/$ADMIN_USER/.ssh"
+  install -m 0600 -o "$ADMIN_USER" -g "$ADMIN_USER" \
+    "$admin_key" "/home/$ADMIN_USER/.ssh/authorized_keys"
+
+  if [ "${ENABLE_SWAP:-true}" = true ] && ! swapon --show=NAME | grep -qx /swapfile; then
+    fallocate -l "${SWAP_SIZE:-2G}" /swapfile
+    chmod 0600 /swapfile
+    mkswap /swapfile
+    swapon /swapfile
+    grep -q '^/swapfile ' /etc/fstab \
+      || echo '/swapfile none swap sw 0 0' >> /etc/fstab
+  fi
+}
+
+write_ssh_configuration() {
+  log "Configuration SSH renforcée"
+  install -d -m 0755 /etc/ssh/sshd_config.d /etc/ssh/authorized_keys
+
+  root_login=no
+  if [ "${KEEP_SSH_PORT_22:-true}" = true ] && [ "$FINALIZE_SSH" != true ]; then
+    root_login=prohibit-password
+  fi
+
+  cat > /etc/ssh/sshd_config.d/20-vps-hardening.conf <<EOF
+Port $SSH_PORT
+PermitRootLogin $root_login
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PubkeyAuthentication yes
+AuthorizedKeysFile .ssh/authorized_keys /etc/ssh/authorized_keys/%u
+X11Forwarding no
+MaxAuthTries 3
+ClientAliveInterval 300
+ClientAliveCountMax 2
+
+Match Group sftp-only
+    ChrootDirectory ${SFTP_ROOT:-/srv/sftp}/%u
+    ForceCommand internal-sftp -d /upload -u 0027
+    AllowAgentForwarding no
+    AllowTcpForwarding no
+    PermitTunnel no
+    X11Forwarding no
+
+Match all
+EOF
+
+  if [ "${KEEP_SSH_PORT_22:-true}" = true ] && [ "$FINALIZE_SSH" != true ]; then
+    cat > /etc/ssh/sshd_config.d/21-vps-bootstrap-port.conf <<'EOF'
+# Port temporaire à retirer avec : vps-install --finalize-ssh
+Port 22
+EOF
+  else
+    rm -f /etc/ssh/sshd_config.d/21-vps-bootstrap-port.conf
+  fi
+
+  if [ "${ENABLE_SFTP:-true}" = true ]; then
+    sftp_key=$(resolve_from_install "${SFTP_SSH_KEY_FILE:?SFTP_SSH_KEY_FILE manquant}")
+    [ -s "$sftp_key" ] || die "clé publique SFTP absente : $sftp_key"
+
+    getent group sftp-only >/dev/null 2>&1 || groupadd --system sftp-only
+    if ! id "${SFTP_USER:?SFTP_USER manquant}" >/dev/null 2>&1; then
+      useradd --no-create-home --home-dir /upload --shell /usr/sbin/nologin \
+        --gid sftp-only "$SFTP_USER"
+    fi
+    usermod --gid sftp-only --home /upload --shell /usr/sbin/nologin "$SFTP_USER"
+
+    chroot="${SFTP_ROOT:-/srv/sftp}/$SFTP_USER"
+    install -d -m 0755 -o root -g root "$chroot"
+    install -d -m 0750 -o "$SFTP_USER" -g sftp-only "$chroot/upload"
+    install -m 0600 -o root -g root \
+      "$sftp_key" "/etc/ssh/authorized_keys/$SFTP_USER"
+  fi
+
+  sshd -t
+  systemctl reload ssh
+}
+
+write_firewall() {
+  log "Pare-feu IPv4 et IPv6"
+  update-alternatives --set iptables /usr/sbin/iptables-nft
+  update-alternatives --set ip6tables /usr/sbin/ip6tables-nft
+
+  ssh_rules="-A INPUT -p tcp --dport $SSH_PORT -m conntrack --ctstate NEW -j ACCEPT"
+  if [ "${KEEP_SSH_PORT_22:-true}" = true ] && [ "$FINALIZE_SSH" != true ] \
+    && [ "$SSH_PORT" -ne 22 ]; then
+    ssh_rules="$ssh_rules
+-A INPUT -p tcp --dport 22 -m conntrack --ctstate NEW -j ACCEPT"
+  fi
+
+  cat > /etc/iptables/rules.v4 <<EOF
+*filter
+:INPUT DROP [0:0]
+:FORWARD DROP [0:0]
+:OUTPUT ACCEPT [0:0]
+-A INPUT -i lo -j ACCEPT
+-A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+-A INPUT -m conntrack --ctstate INVALID -j DROP
+-A INPUT -p icmp -j ACCEPT
+$ssh_rules
+-A INPUT -p tcp -m multiport --dports 80,443 -m conntrack --ctstate NEW -j ACCEPT
+-A INPUT -p tcp --syn -m hashlimit --hashlimit-above 15/minute --hashlimit-burst 20 --hashlimit-mode srcip --hashlimit-name portscan4 -m limit --limit 10/second --limit-burst 20 -j LOG --log-prefix "IPT_PORTSCAN " --log-level 6
+-A INPUT -p udp -m hashlimit --hashlimit-above 30/minute --hashlimit-burst 30 --hashlimit-mode srcip --hashlimit-name udpscan4 -m limit --limit 10/second --limit-burst 20 -j LOG --log-prefix "IPT_UDPSCAN " --log-level 6
+COMMIT
+EOF
+
+  cat > /etc/iptables/rules.v6 <<EOF
+*filter
+:INPUT DROP [0:0]
+:FORWARD DROP [0:0]
+:OUTPUT ACCEPT [0:0]
+-A INPUT -i lo -j ACCEPT
+-A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+-A INPUT -m conntrack --ctstate INVALID -j DROP
+-A INPUT -p ipv6-icmp -j ACCEPT
+$ssh_rules
+-A INPUT -p tcp -m multiport --dports 80,443 -m conntrack --ctstate NEW -j ACCEPT
+-A INPUT -p tcp --syn -m hashlimit --hashlimit-above 15/minute --hashlimit-burst 20 --hashlimit-mode srcip --hashlimit-name portscan6 -m limit --limit 10/second --limit-burst 20 -j LOG --log-prefix "IPT_PORTSCAN " --log-level 6
+-A INPUT -p udp -m hashlimit --hashlimit-above 30/minute --hashlimit-burst 30 --hashlimit-mode srcip --hashlimit-name udpscan6 -m limit --limit 10/second --limit-burst 20 -j LOG --log-prefix "IPT_UDPSCAN " --log-level 6
+COMMIT
+EOF
+
+  iptables-restore --test /etc/iptables/rules.v4
+  ip6tables-restore --test /etc/iptables/rules.v6
+
+  docker_was_active=false
+  if systemctl is-active --quiet docker 2>/dev/null; then
+    docker_was_active=true
+  fi
+
+  iptables-restore < /etc/iptables/rules.v4
+  if [ "${ENABLE_IPV6:-true}" = true ]; then
+    ip6tables-restore < /etc/iptables/rules.v6
+  fi
+  systemctl enable netfilter-persistent
+  netfilter-persistent save
+
+  if [ "$docker_was_active" = true ]; then
+    systemctl restart docker
+  fi
+}
+
+install_fail2ban() {
+  log "Fail2ban pour SSH et scans rapides"
+  install -d -m 0755 /etc/fail2ban/filter.d /etc/fail2ban/jail.d
+
+  ssh_ports=$SSH_PORT
+  if [ "${KEEP_SSH_PORT_22:-true}" = true ] && [ "$FINALIZE_SSH" != true ] \
+    && [ "$SSH_PORT" -ne 22 ]; then
+    ssh_ports="22,$SSH_PORT"
+  fi
+
+  cat > /etc/fail2ban/filter.d/iptables-portscan.conf <<'EOF'
+[Definition]
+failregex = ^.*IPT_(?:PORT|UDP)SCAN .*SRC=<HOST>\s.*$
+ignoreregex =
+journalmatch = _TRANSPORT=kernel
+EOF
+
+  cat > /etc/fail2ban/jail.d/vps.local <<EOF
+[DEFAULT]
+bantime = 1h
+findtime = 10m
+maxretry = 5
+backend = systemd
+ignoreip = 127.0.0.1/8 ::1
+banaction = iptables-multiport
+banaction_allports = iptables-allports
+
+[sshd]
+enabled = true
+port = $ssh_ports
+backend = systemd
+
+[iptables-portscan]
+enabled = true
+filter = iptables-portscan
+backend = systemd
+maxretry = 3
+findtime = 2m
+bantime = 24h
+banaction = iptables-allports
+EOF
+
+  cat > /etc/fail2ban/fail2ban.local <<'EOF'
+[Definition]
+logtarget = SYSTEMD-JOURNAL
+loglevel = INFO
+dbpurgeage = 7d
+EOF
+
+  fail2ban-client -t
+  systemctl enable --now fail2ban
+  systemctl restart fail2ban
+}
+
+install_docker() {
+  [ "${INSTALL_DOCKER:-true}" = true ] || return 0
+  log "Docker depuis le dépôt officiel"
+
+  for package in docker.io docker-doc docker-compose podman-docker containerd runc; do
+    apt-get remove -y "$package" >/dev/null 2>&1 || true
+  done
+
+  install -m 0755 -d /etc/apt/keyrings
+  curl -fsSL https://download.docker.com/linux/debian/gpg \
+    -o /etc/apt/keyrings/docker.asc
+  chmod a+r /etc/apt/keyrings/docker.asc
+
+  architecture=$(dpkg --print-architecture)
+  # shellcheck disable=SC1091
+  . /etc/os-release
+  cat > /etc/apt/sources.list.d/docker.sources <<EOF
+Types: deb
+URIs: https://download.docker.com/linux/debian
+Suites: $VERSION_CODENAME
+Components: stable
+Architectures: $architecture
+Signed-By: /etc/apt/keyrings/docker.asc
+EOF
+
+  apt-get update
+  DEBIAN_FRONTEND=noninteractive apt-get install -y \
+    docker-ce docker-ce-cli containerd.io docker-buildx-plugin \
+    docker-compose-plugin
+
+  daemon_fragment=$(mktemp)
+  daemon_merged=$(mktemp)
+  trap 'rm -f "$daemon_fragment" "$daemon_merged"' EXIT HUP INT TERM
+  cat > "$daemon_fragment" <<'EOF'
+{
+  "log-driver": "journald",
+  "log-opts": {
+    "tag": "{{.Name}}",
+    "labels": "com.docker.compose.project,com.docker.compose.service"
+  },
+  "metrics-addr": "127.0.0.1:9323",
+  "experimental": true
+}
+EOF
+
+  if [ -s /etc/docker/daemon.json ]; then
+    jq -s '.[0] * .[1]' /etc/docker/daemon.json "$daemon_fragment" > "$daemon_merged"
+  else
+    cp "$daemon_fragment" "$daemon_merged"
+  fi
+  install -d -m 0755 /etc/docker
+  install -m 0644 "$daemon_merged" /etc/docker/daemon.json
+  dockerd --validate --config-file=/etc/docker/daemon.json
+  systemctl enable --now docker
+  systemctl restart docker
+  usermod -aG docker "$ADMIN_USER"
+  install -m 0755 "$SCRIPT_DIR/vps-compose" /usr/local/sbin/vps-compose
+  install -m 0755 "$SCRIPT_DIR/vps-image-lock" /usr/local/sbin/vps-image-lock
+  install -m 0755 "$SCRIPT_DIR/vps-image-audit" /usr/local/sbin/vps-image-audit
+  install -m 0755 "$SCRIPT_DIR/vps-backup" /usr/local/sbin/vps-backup
+  install -m 0755 "$SCRIPT_DIR/vps-health-report" \
+    /usr/local/sbin/vps-health-report
+  install -m 0755 "$SCRIPT_DIR/vps-nightly-maintenance" \
+    /usr/local/sbin/vps-nightly-maintenance
+  install -m 0644 \
+    "$INSTALL_DIR/system/systemd/vps-nightly-maintenance.service" \
+    /etc/systemd/system/vps-nightly-maintenance.service
+  install -m 0644 \
+    "$INSTALL_DIR/system/systemd/vps-nightly-maintenance.timer" \
+    /etc/systemd/system/vps-nightly-maintenance.timer
+
+  cat > /etc/default/vps-maintenance <<EOF
+BACKUP_RETENTION_DAYS=${BACKUP_RETENTION_DAYS:-7}
+BACKUP_MIN_FREE_MB=${BACKUP_MIN_FREE_MB:-1024}
+EOF
+  chmod 0644 /etc/default/vps-maintenance
+  install -d -m 0700 /opt/selfhosted/backups/files
+  systemctl daemon-reload
+  systemctl enable --now vps-nightly-maintenance.timer
+  rm -f "$daemon_fragment" "$daemon_merged"
+  trap - EXIT HUP INT TERM
+}
+
+copy_stack() {
+  name=$1
+  source=$2
+  target="/opt/selfhosted/$name"
+  install -d -m 0750 "$target"
+  rsync -a --exclude '.env' "$source/" "$target/"
+}
+
+install_databases() {
+  [ "${INSTALL_DATABASES:-true}" = true ] || return 0
+  log "Bases de données partagées"
+
+  : "${POSTGRES_ADMIN_PASSWORD:?POSTGRES_ADMIN_PASSWORD manquant}"
+  : "${MARIADB_ADMIN_PASSWORD:?MARIADB_ADMIN_PASSWORD manquant}"
+  : "${LINKWARDEN_DB_PASSWORD:?LINKWARDEN_DB_PASSWORD manquant}"
+  : "${DAVIS_DB_PASSWORD:?DAVIS_DB_PASSWORD manquant}"
+  : "${FRESHRSS_DB_PASSWORD:?FRESHRSS_DB_PASSWORD manquant}"
+  : "${TTRSS_DB_PASSWORD:?TTRSS_DB_PASSWORD manquant}"
+  : "${WEB_DB_PASSWORD:?WEB_DB_PASSWORD manquant}"
+
+  copy_stack databases "$INSTALL_DIR/databases"
+  chmod 0555 \
+    /opt/selfhosted/databases/init-mariadb.sh \
+    /opt/selfhosted/databases/init-postgres.sh
+
+  umask 077
+  cat > /opt/selfhosted/databases/.env <<EOF
+DATABASE_NETWORK_PREFIX=${DATABASE_NETWORK_PREFIX:-vps-db}
+POSTGRES_VERSION=$POSTGRES_VERSION
+POSTGRES_ADMIN_PASSWORD=$POSTGRES_ADMIN_PASSWORD
+MARIADB_VERSION=$MARIADB_VERSION
+MARIADB_ADMIN_PASSWORD=$MARIADB_ADMIN_PASSWORD
+LINKWARDEN_DB_PASSWORD=$LINKWARDEN_DB_PASSWORD
+DAVIS_DB_PASSWORD=$DAVIS_DB_PASSWORD
+FRESHRSS_DB_PASSWORD=$FRESHRSS_DB_PASSWORD
+TTRSS_DB_PASSWORD=$TTRSS_DB_PASSWORD
+WEB_DB_PASSWORD=$WEB_DB_PASSWORD
+EOF
+  chmod 0600 /opt/selfhosted/databases/.env
+
+  /usr/local/sbin/vps-image-lock databases
+  /usr/local/sbin/vps-compose databases up -d --wait
+  /usr/local/sbin/vps-compose databases exec -T mariadb \
+    sh /usr/local/sbin/reconcile-applications
+  /usr/local/sbin/vps-compose databases exec -T postgres \
+    sh /usr/local/sbin/reconcile-applications
+}
+
+write_service_env() {
+  name=$1
+  target="/opt/selfhosted/$name/.env"
+  umask 077
+
+  case "$name" in
+    linkwarden)
+      cat > "$target" <<EOF
+LINKWARDEN_VERSION=$LINKWARDEN_VERSION
+DATABASE_NETWORK_PREFIX=${DATABASE_NETWORK_PREFIX:-vps-db}
+LINKWARDEN_DOMAIN=$LINKWARDEN_DOMAIN
+LINKWARDEN_URL=${LINKWARDEN_URL:-https://$LINKWARDEN_DOMAIN}
+LINKWARDEN_DISABLE_REGISTRATION=${LINKWARDEN_DISABLE_REGISTRATION:-false}
+TIMEZONE=$TIMEZONE
+LINKWARDEN_DB_PASSWORD=$LINKWARDEN_DB_PASSWORD
+LINKWARDEN_NEXTAUTH_SECRET=$LINKWARDEN_NEXTAUTH_SECRET
+EOF
+      ;;
+    davis)
+      cat > "$target" <<EOF
+DAVIS_VERSION=$DAVIS_VERSION
+MARIADB_SERVER_VERSION=${MARIADB_SERVER_VERSION:-11.8.8-MariaDB}
+DATABASE_NETWORK_PREFIX=${DATABASE_NETWORK_PREFIX:-vps-db}
+DAVIS_DOMAIN=$DAVIS_DOMAIN
+TIMEZONE=$TIMEZONE
+DAVIS_DB_PASSWORD=$DAVIS_DB_PASSWORD
+DAVIS_APP_SECRET=$DAVIS_APP_SECRET
+DAVIS_ADMIN_PASSWORD=$DAVIS_ADMIN_PASSWORD
+EOF
+      ;;
+    freshrss)
+      cat > "$target" <<EOF
+FRESHRSS_VERSION=$FRESHRSS_VERSION
+DATABASE_NETWORK_PREFIX=${DATABASE_NETWORK_PREFIX:-vps-db}
+TIMEZONE=$TIMEZONE
+FRESHRSS_DB_PASSWORD=$FRESHRSS_DB_PASSWORD
+EOF
+      ;;
+    ttrss)
+      cat > "$target" <<EOF
+TTRSS_IMAGE=$TTRSS_IMAGE
+NGINX_ALPINE_VERSION=$NGINX_ALPINE_VERSION
+DATABASE_NETWORK_PREFIX=${DATABASE_NETWORK_PREFIX:-vps-db}
+TTRSS_DOMAIN=$TTRSS_DOMAIN
+TTRSS_URL=${TTRSS_URL:-https://$TTRSS_DOMAIN/}
+TTRSS_DB_PASSWORD=$TTRSS_DB_PASSWORD
+TTRSS_ADMIN_PASSWORD=$TTRSS_ADMIN_PASSWORD
+EOF
+      ;;
+    web)
+      cat > "$target" <<EOF
+PHP_BASE_IMAGE=$PHP_BASE_IMAGE
+WEB_IMAGE_TAG=$WEB_IMAGE_TAG
+DATABASE_NETWORK_PREFIX=${DATABASE_NETWORK_PREFIX:-vps-db}
+WEB_DOMAIN=$WEB_DOMAIN
+WEB_DB_PASSWORD=$WEB_DB_PASSWORD
+EOF
+      ;;
+    kill-newsletter)
+      :
+      ;;
+  esac
+  chmod 0600 "$target" 2>/dev/null || true
+}
+
+install_services() {
+  log "Projets Docker applicatifs"
+  if [ "${INSTALL_DATABASES:-true}" = true ] \
+    && [ ! -f /opt/selfhosted/databases/docker-compose.yml ]; then
+    install_databases
+  fi
+  old_ifs=$IFS
+  IFS=,
+  for service in ${SERVICES:-}; do
+    IFS=$old_ifs
+    [ -n "$service" ] || continue
+    source="$INSTALL_DIR/services/$service"
+    [ -d "$source" ] || die "modèle de service absent : $service"
+    copy_stack "$service" "$source"
+    write_service_env "$service"
+    chown root:root "/opt/selfhosted/$service"
+    chown root:root "/opt/selfhosted/$service/docker-compose.yml"
+    if [ "${AUTO_START_SERVICES:-false}" = true ]; then
+      /usr/local/sbin/vps-image-lock "$service"
+      /usr/local/sbin/vps-compose "$service" up -d
+    fi
+    IFS=,
+  done
+  IFS=$old_ifs
+}
+
+install_gateway() {
+  [ "${INSTALL_GATEWAY:-true}" = true ] || return 0
+  log "Nginx et Certbot dans Docker"
+  DEBIAN_FRONTEND=noninteractive apt-get install -y apache2-utils
+  copy_stack gateway "$INSTALL_DIR/gateway"
+
+  umask 077
+  cat > /opt/selfhosted/gateway/.env <<EOF
+NGINX_VERSION=$NGINX_VERSION
+CERTBOT_VERSION=$CERTBOT_VERSION
+ADMIN_EMAIL=$ADMIN_EMAIL
+LINKWARDEN_DOMAIN=$LINKWARDEN_DOMAIN
+DAVIS_DOMAIN=$DAVIS_DOMAIN
+FRESHRSS_DOMAIN=$FRESHRSS_DOMAIN
+TTRSS_DOMAIN=$TTRSS_DOMAIN
+NEWSLETTER_DOMAIN=$NEWSLETTER_DOMAIN
+WEB_DOMAIN=$WEB_DOMAIN
+MONITORING_DOMAIN=$MONITORING_DOMAIN
+EOF
+  chmod 0600 /opt/selfhosted/gateway/.env
+
+  install -d -m 0750 /opt/selfhosted/gateway/nginx/auth
+  htpasswd -bcB \
+    /opt/selfhosted/gateway/nginx/auth/.htpasswd-monitoring \
+    observateur "$GRAFANA_HTTP_PASSWORD"
+  chmod 0640 /opt/selfhosted/gateway/nginx/auth/.htpasswd-monitoring
+  install -m 0644 "$INSTALL_DIR/system/logrotate/nginx-container" \
+    /etc/logrotate.d/nginx-container
+
+  install -m 0755 /opt/selfhosted/gateway/scripts/vps-gateway \
+    /usr/local/sbin/vps-gateway
+  /usr/local/sbin/vps-image-lock gateway
+  /usr/local/sbin/vps-gateway start-http
+}
+
+install_monitoring() {
+  [ "${INSTALL_MONITORING:-true}" = true ] || return 0
+  log "Supervision Docker"
+  copy_stack monitoring "$INSTALL_DIR/monitoring"
+
+  umask 077
+  cat > /opt/selfhosted/monitoring/.env <<EOF
+GRAFANA_VERSION=$GRAFANA_VERSION
+PROMETHEUS_VERSION=$PROMETHEUS_VERSION
+PROMETHEUS_RETENTION_TIME=${PROMETHEUS_RETENTION_TIME:-7d}
+PROMETHEUS_RETENTION_SIZE=${PROMETHEUS_RETENTION_SIZE:-512MB}
+NODE_EXPORTER_VERSION=$NODE_EXPORTER_VERSION
+CADVISOR_VERSION=$CADVISOR_VERSION
+LOKI_VERSION=$LOKI_VERSION
+ALLOY_VERSION=$ALLOY_VERSION
+ALPINE_VERSION=$ALPINE_VERSION
+MONITORING_DOMAIN=$MONITORING_DOMAIN
+EOF
+  chmod 0600 /opt/selfhosted/monitoring/.env
+
+  install -d -m 0755 /var/lib/node-exporter/textfile
+  install -m 0755 /opt/selfhosted/monitoring/scripts/vps-monitoring \
+    /usr/local/sbin/vps-monitoring
+  install -m 0755 /opt/selfhosted/monitoring/scripts/vps-local-metrics \
+    /usr/local/sbin/vps-local-metrics
+  install -m 0644 \
+    /opt/selfhosted/monitoring/etc/systemd/vps-local-metrics.service \
+    /etc/systemd/system/vps-local-metrics.service
+  install -m 0644 \
+    /opt/selfhosted/monitoring/etc/systemd/vps-local-metrics.timer \
+    /etc/systemd/system/vps-local-metrics.timer
+
+  cat > /etc/default/vps-monitoring <<EOF
+ENABLE_LOGS=${ENABLE_LOGS:-false}
+ENABLE_CONTAINER_METRICS=${ENABLE_CONTAINER_METRICS:-false}
+ENABLE_LOCAL_METRICS=true
+EOF
+  chmod 0644 /etc/default/vps-monitoring
+  /usr/local/sbin/vps-image-lock monitoring
+  /usr/local/sbin/vps-monitoring apply
+  systemctl daemon-reload
+  systemctl enable --now vps-local-metrics.timer
+}
+
+finalize_ssh() {
+  log "Finalisation du port SSH"
+  echo "Cette étape ferme le port 22 et conserve uniquement le port $SSH_PORT."
+  printf "Une connexion SSH et SFTP sur le nouveau port a-t-elle été testée ? [oui/N] "
+  read -r answer
+  [ "$answer" = oui ] || die "finalisation annulée"
+  FINALIZE_SSH=true
+  write_ssh_configuration
+  write_firewall
+  install_fail2ban
+  echo "Le port 22 temporaire a été retiré."
+}
+
+run_phase() {
+  case "$1" in
+    all)
+      install_base
+      write_ssh_configuration
+      write_firewall
+      install_fail2ban
+      install_docker
+      install_databases
+      install_services
+      install_gateway
+      install_monitoring
+      ;;
+    base) install_base ;;
+    ssh) write_ssh_configuration ;;
+    firewall)
+      write_firewall
+      install_fail2ban
+      ;;
+    docker) install_docker ;;
+    databases) install_databases ;;
+    services) install_services ;;
+    gateway) install_gateway ;;
+    monitoring) install_monitoring ;;
+    *) die "phase inconnue : $1" ;;
+  esac
+}
+
+require_root
+load_configuration
+check_debian
+
+if [ "$FINALIZE_SSH" = true ]; then
+  finalize_ssh
+else
+  run_phase "$PHASE"
+fi
+
+log "Installation terminée"
+echo "Tester dans un second terminal :"
+echo "  ssh -p $SSH_PORT $ADMIN_USER@IP_DU_SERVEUR"
+if [ "${ENABLE_SFTP:-true}" = true ]; then
+  echo "  sftp -P $SSH_PORT $SFTP_USER@IP_DU_SERVEUR"
+fi

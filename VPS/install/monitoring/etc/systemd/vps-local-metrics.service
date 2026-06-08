@@ -1,0 +1,10 @@
+[Unit]
+Description=Publication des métriques locales du VPS
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/vps-local-metrics
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7

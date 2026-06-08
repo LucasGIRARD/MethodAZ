@@ -1,0 +1,11 @@
+# Fichiers locaux contenant des secrets ou une configuration réelle.
+install/config/vps.env
+install/config/secrets.env
+install/keys/*.pub
+install/keys/*.pem
+install/keys/id_*
+install/local/secrets.env
+install/local/work/
+
+# Fichiers générés lors des validations locales.
+install/validation/

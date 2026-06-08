@@ -1,0 +1,14 @@
+name: kill-newsletter
+
+services:
+  app:
+    build:
+      context: ./app
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3005:8000"
+    volumes:
+      - ./data:/app/data
+    pids_limit: 256
+    security_opt:
+      - no-new-privileges:true

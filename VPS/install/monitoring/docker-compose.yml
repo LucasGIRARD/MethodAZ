@@ -1,0 +1,201 @@
+name: monitoring
+
+services:
+  grafana:
+    image: grafana/grafana:${GRAFANA_VERSION}
+    network_mode: host
+    user: "472:472"
+    environment:
+      GF_SERVER_HTTP_ADDR: 127.0.0.1
+      GF_SERVER_HTTP_PORT: 3000
+      GF_SERVER_DOMAIN: ${MONITORING_DOMAIN}
+      GF_SERVER_ROOT_URL: https://${MONITORING_DOMAIN}
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+      GF_AUTH_BASIC_ENABLED: "false"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_USERS_ALLOW_ORG_CREATE: "false"
+      GF_USERS_VIEWERS_CAN_EDIT: "false"
+      GF_EXPLORE_ENABLED: "false"
+      GF_QUERY_HISTORY_ENABLED: "false"
+      GF_PLUGINS_PLUGIN_ADMIN_ENABLED: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_SECURITY_DISABLE_INITIAL_ADMIN_CREATION: "true"
+      GF_SECURITY_DISABLE_GRAVATAR: "true"
+      GF_SECURITY_COOKIE_SECURE: "true"
+      GF_SECURITY_COOKIE_SAMESITE: strict
+      GF_SECURITY_ALLOW_EMBEDDING: "false"
+      GF_SECURITY_DATA_SOURCE_PROXY_WHITELIST: 127.0.0.1:9090 127.0.0.1:3100
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    pids_limit: 256
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:${PROMETHEUS_VERSION}
+    network_mode: host
+    user: "65534:65534"
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=${PROMETHEUS_RETENTION_TIME:-7d}
+      - --storage.tsdb.retention.size=${PROMETHEUS_RETENTION_SIZE:-512MB}
+      - --web.listen-address=127.0.0.1:9090
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    pids_limit: 256
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
+  node-exporter:
+    image: prom/node-exporter:${NODE_EXPORTER_VERSION}
+    network_mode: host
+    pid: host
+    command:
+      - --path.rootfs=/host
+      - --web.listen-address=127.0.0.1:9100
+      - --collector.textfile.directory=/textfile
+      - --collector.filesystem.mount-points-exclude=^/(dev|proc|sys|var/lib/docker/.+|var/lib/containers/storage/.+)($$|/)
+    volumes:
+      - /:/host:ro,rslave
+      - /var/lib/node-exporter/textfile:/textfile:ro
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    pids_limit: 128
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
+  cadvisor:
+    profiles:
+      - containers
+    image: ghcr.io/google/cadvisor:${CADVISOR_VERSION}
+    network_mode: host
+    command:
+      - --listen_ip=127.0.0.1
+      - --port=8080
+      - --docker_only=true
+      - --housekeeping_interval=15s
+      - --store_container_labels=false
+      - --whitelisted_container_labels=com.docker.compose.project,com.docker.compose.service
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
+      - /dev/disk:/dev/disk:ro
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    pids_limit: 256
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
+  loki-init:
+    profiles:
+      - logs
+    image: alpine:${ALPINE_VERSION}
+    user: "0:0"
+    command:
+      - sh
+      - -c
+      - chown 10001:10001 /loki
+    volumes:
+      - loki_data:/loki
+    read_only: true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+    pids_limit: 32
+    security_opt:
+      - no-new-privileges:true
+    restart: "no"
+
+  loki:
+    profiles:
+      - logs
+    image: grafana/loki:${LOKI_VERSION}
+    network_mode: host
+    user: "10001:10001"
+    command:
+      - -config.file=/etc/loki/config.yml
+    volumes:
+      - ./loki/config.yml:/etc/loki/config.yml:ro
+      - loki_data:/loki
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    pids_limit: 256
+    security_opt:
+      - no-new-privileges:true
+    depends_on:
+      loki-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  alloy:
+    profiles:
+      - logs
+    image: grafana/alloy:${ALLOY_VERSION}
+    network_mode: host
+    user: "0:0"
+    command:
+      - run
+      - --server.http.listen-addr=127.0.0.1:12345
+      - --storage.path=/var/lib/alloy
+      - /etc/alloy/config.alloy
+    volumes:
+      - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - alloy_data:/var/lib/alloy
+      - /var/log/journal:/var/log/journal:ro
+      - /run/log/journal:/run/log/journal:ro
+      - /etc/machine-id:/etc/machine-id:ro
+      - /opt/selfhosted/gateway/logs/nginx:/var/log/nginx:ro
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    pids_limit: 256
+    security_opt:
+      - no-new-privileges:true
+    depends_on:
+      - loki
+    restart: unless-stopped
+
+volumes:
+  grafana_data:
+    name: monitoring_grafana_data
+  prometheus_data:
+    name: monitoring_prometheus_data
+  loki_data:
+    name: monitoring_loki_data
+  alloy_data:
+    name: monitoring_alloy_data
