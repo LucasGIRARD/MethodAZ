@@ -224,8 +224,8 @@ panels.push(timeseries("E/S disque des conteneurs", [
 ], 12, 36, 12, 8, "Bps"));
 panels.push(stat("Conteneurs configurés", "vps_docker_containers_total", 0, 44, 4));
 panels.push(stat("Conteneurs actifs", "vps_docker_containers_running", 4, 44, 4));
-panels.push(stat("Événements Docker", 'sum(rate(engine_daemon_events_total{job="docker"}[$__rate_interval]))', 8, 44, 4, "ops"));
-panels.push(stat("Goroutines Docker", 'go_goroutines{job="docker"}', 12, 44, 4));
+panels.push(stat("Conteneurs défaillants", "vps_docker_containers_unhealthy", 8, 44, 4));
+panels.push(stat("Événements Docker", 'sum(rate(engine_daemon_events_total{job="docker"}[$__rate_interval]))', 12, 44, 4, "ops"));
 panels.push(stat("Mémoire Docker", 'process_resident_memory_bytes{job="docker"}', 16, 44, 4, "bytes"));
 panels.push(stat("Redémarrages cAdvisor", 'changes(process_start_time_seconds{job="cadvisor"}[$__range])', 20, 44, 4));
 
@@ -248,22 +248,40 @@ panels.push(stat("Unités systemd en échec", "vps_systemd_failed_units", 10, 49
 panels.push(stat("Adresses bannies", "vps_fail2ban_banned_current", 15, 49, 4));
 panels.push(stat("Dernière collecte locale", 'time() - max(timestamp(vps_logs_enabled))', 19, 49, 5, "s"));
 
+panels.push(row("Sauvegardes et restauration", 53));
+panels.push(stat("Dernière sauvegarde locale", 'time() - (vps_last_local_backup_success_timestamp_seconds > 0)', 0, 54, 6, "s"));
+panels.push(stat("Sauvegarde externe", "vps_remote_backup_enabled", 6, 54, 6, "bool", {
+  fieldDefaults: {
+    mappings: [
+      {
+        options: {
+          "0": { color: "gray", index: 0, text: "Désactivée" },
+          "1": { color: "green", index: 1, text: "Activée" },
+        },
+        type: "value",
+      },
+    ],
+  },
+}));
+panels.push(stat("Dernière sauvegarde externe", 'time() - (vps_last_remote_backup_success_timestamp_seconds > 0)', 12, 54, 6, "s"));
+panels.push(stat("Dernier test de restauration", 'time() - (vps_last_restore_test_success_timestamp_seconds > 0)', 18, 54, 6, "s"));
+
 const logPanels = [];
 logPanels.push(textPanel(
   "Fonctionnement",
   "Loki/Alloy et cAdvisor sont optionnels. Modifier `ENABLE_LOGS` et `ENABLE_CONTAINER_METRICS` dans `/etc/default/vps-monitoring`, puis exécuter `sudo vps-monitoring apply`. Les journaux locaux restent bornés par journald et logrotate.",
   0,
-  54,
+  60,
   24,
   3,
 ));
-logPanels.push(stat("Loki joignable", 'up{job="loki"}', 0, 57, 6));
-logPanels.push(stat("Alloy joignable", 'up{job="alloy"}', 6, 57, 6));
+logPanels.push(stat("Loki joignable", 'up{job="loki"}', 0, 63, 6));
+logPanels.push(stat("Alloy joignable", 'up{job="alloy"}', 6, 63, 6));
 logPanels.push(timeseries("Volume de journaux", [
   target('sum by (source) (count_over_time({source=~"journal|nginx"}[$__rate_interval]))', "{{source}}", "A", loki),
-], 12, 57, 12, 6, "ops"));
-logPanels.push(logsPanel("Journaux système, Docker et Nginx", '{source=~"journal|nginx"} |~ "(?i)$log_search"', 0, 63, 24, 11));
-panels.push(row("Journaux optionnels", 53, true, logPanels));
+], 12, 63, 12, 6, "ops"));
+logPanels.push(logsPanel("Journaux système, Docker et Nginx", '{source=~"journal|nginx"} |~ "(?i)$log_search"', 0, 69, 24, 11));
+panels.push(row("Journaux optionnels", 59, true, logPanels));
 
 const dashboard = {
   annotations: {

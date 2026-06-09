@@ -25,6 +25,9 @@ Lire et appliquer les documents dans cet ordre :
 16. [Journalisation, rotation et rétention](docs/10-journalisation-rotation.md)
 17. [Sécurité des images Docker](docs/securite-images-docker.md)
 18. [Dimensionnement du VPS IONOS](docs/dimensionnement-vps-ionos.md)
+19. [Restauration complète sur un VPS vierge](docs/procedures/restauration-vps-vierge.md)
+20. [Retour arrière après une mise à jour](docs/procedures/retour-arriere-mise-a-jour.md)
+21. [Ajouter une application](docs/procedures/ajout-application.md)
 
 ## Décisions actives
 
@@ -53,6 +56,9 @@ Lire et appliquer les documents dans cet ordre :
   Fail2ban, Certbot, msmtp et les rapports locaux.
 - Maintenance : sauvegarde et contrôles démarrés vers `02:15`, puis mises à
   jour Debian à `04:15` et `04:45`, selon le fuseau `Europe/Paris`.
+- Restaurations : test SQL isolé le premier jour du mois.
+- Sauvegarde externe : Restic/S3 chiffré, facultatif et désactivé par défaut.
+- Ressources : limites mémoire `VPS_2G` ou `VPS_4G`.
 
 ## Installation rapide
 
@@ -72,6 +78,19 @@ la finalisation désactive totalement la connexion root :
 
 ```bash
 sudo vps-install --finalize-ssh
+```
+
+## Validation continue
+
+Le workflow [Validation VPS](../.github/workflows/validate-vps.yml) exécute
+Compose, ShellCheck, l'analyse PowerShell, le contrôle des liens Markdown, le
+contrôle des versions d'images et Gitleaks à chaque modification de `VPS/`.
+
+La validation locale principale reste :
+
+```bash
+sh install/scripts/validate-bundle.sh
+pwsh install/scripts/validate-repository.ps1
 ```
 
 ## Variables à remplacer

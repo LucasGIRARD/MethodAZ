@@ -46,6 +46,33 @@ Le profil par défaut conserve le confort utile :
 - sauvegarde locale limitée à 7 jours ;
 - travaux lourds exécutés avec une priorité CPU et disque réduite.
 
+## Profils de limites mémoire
+
+La variable suivante sélectionne les limites maximales par conteneur :
+
+```bash
+RESOURCE_PROFILE=VPS_4G
+```
+
+Deux profils sont disponibles :
+
+| Profil | Usage | Exemples de limites |
+| --- | --- | --- |
+| `VPS_2G` | Un ou deux services applicatifs | SQL `320m`, Linkwarden `384m`, Grafana et Prometheus `256m` |
+| `VPS_4G` | Sélection complète à faible trafic | SQL `512m`, Linkwarden `768m`, Grafana `384m`, Prometheus `512m` |
+
+Les limites empêchent un processus isolé de consommer toute la RAM. Leur
+somme peut dépasser la mémoire physique : elles ne rendent pas la sélection
+complète compatible avec 2 Go et ne remplacent pas la surveillance du swap et
+des événements OOM.
+
+Chaque variable peut être surchargée dans `vps.env`, par exemple :
+
+```bash
+LINKWARDEN_MEMORY_LIMIT=640m
+POSTGRES_MEMORY_LIMIT=448m
+```
+
 Ce qui n'est pas sacrifié :
 
 - HTTPS et renouvellement automatique ;
@@ -64,6 +91,7 @@ Limiter `SERVICES` à un ou deux services. Conserver :
 ENABLE_LOGS=false
 ENABLE_CONTAINER_METRICS=false
 SWAP_SIZE=2G
+RESOURCE_PROFILE=VPS_2G
 ```
 
 Linkwarden est généralement le service applicatif le plus exigeant de cette
@@ -73,6 +101,10 @@ liste. Sur 2 Go, éviter de le cumuler avec les cinq applications.
 
 La sélection complète peut fonctionner pour un usage personnel à faible
 trafic avec le profil léger. Surveiller pendant les premières semaines :
+
+```bash
+RESOURCE_PROFILE=VPS_4G
+```
 
 ```bash
 free -h

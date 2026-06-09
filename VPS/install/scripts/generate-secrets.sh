@@ -1,8 +1,8 @@
 #!/bin/sh
 set -eu
 
-SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-INSTALL_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
+SCRIPT_DIR=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
+INSTALL_DIR=$(CDPATH='' cd -- "$SCRIPT_DIR/.." && pwd)
 OUTPUT=${1:-"$INSTALL_DIR/config/secrets.env"}
 
 if [ -e "$OUTPUT" ]; then

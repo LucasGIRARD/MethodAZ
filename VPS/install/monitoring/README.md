@@ -9,8 +9,8 @@ VPS :
 - métriques natives du démon Docker ;
 - cAdvisor, désactivé par défaut, pour les métriques détaillées par conteneur ;
 - Loki et Alloy, facultatifs, pour les journaux systemd, Docker et Nginx ;
-- métriques locales sur les mises à jour, le redémarrage et les unités en
-  échec.
+- métriques locales sur les mises à jour, le redémarrage, les unités en
+  échec, les healthchecks Docker, les sauvegardes et les restaurations.
 
 Le déploiement et les flags `ENABLE_LOGS` et
 `ENABLE_CONTAINER_METRICS` sont documentés dans

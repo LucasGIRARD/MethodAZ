@@ -1,6 +1,11 @@
 #!/bin/sh
 set -eu
 
+MARIADB_ROOT_PASSWORD=$(cat /run/secrets/mariadb_admin_password)
+DAVIS_DB_PASSWORD=$(cat /run/secrets/davis_db_password)
+FRESHRSS_DB_PASSWORD=$(cat /run/secrets/freshrss_db_password)
+WEB_DB_PASSWORD=$(cat /run/secrets/web_db_password)
+
 mariadb --protocol=socket \
   --user=root \
   --password="$MARIADB_ROOT_PASSWORD" <<EOSQL

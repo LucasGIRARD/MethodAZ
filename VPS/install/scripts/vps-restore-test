@@ -1,0 +1,204 @@
+#!/bin/sh
+set -eu
+umask 077
+
+STACK_ROOT=${STACK_ROOT:-/opt/selfhosted}
+BACKUP_ROOT=${BACKUP_ROOT:-$STACK_ROOT/backups/files}
+INSTALL_ROOT=${INSTALL_ROOT:-/opt/vps-install}
+REPORT_DIR=${REPORT_DIR:-/var/log/server-checks}
+REPORT=${REPORT:-$REPORT_DIR/restore-test.txt}
+STATUS_DIR=${STATUS_DIR:-/var/lib/vps-maintenance}
+BACKUP_DIR=${1:-}
+
+[ "$(id -u)" -eq 0 ] || {
+  echo "Exécuter cette commande avec sudo ou comme root." >&2
+  exit 1
+}
+
+command -v docker >/dev/null 2>&1 || {
+  echo "Docker est introuvable." >&2
+  exit 1
+}
+
+if [ -z "$BACKUP_DIR" ]; then
+  latest=$(
+    find "$BACKUP_ROOT" -mindepth 1 -maxdepth 1 -type d \
+      -name '20??-??-??_*' -printf '%f\n' \
+      | sort \
+      | tail -n 1
+  )
+  [ -n "$latest" ] || {
+    echo "Aucune sauvegarde locale à tester." >&2
+    exit 1
+  }
+  BACKUP_DIR="$BACKUP_ROOT/$latest"
+fi
+
+case "$BACKUP_DIR" in
+  "$BACKUP_ROOT"/*) ;;
+  *)
+    echo "La sauvegarde doit se trouver sous $BACKUP_ROOT." >&2
+    exit 1
+    ;;
+esac
+
+POSTGRES_DUMP="$BACKUP_DIR/databases/postgres.sql.gz"
+MARIADB_DUMP="$BACKUP_DIR/databases/mariadb.sql.gz"
+[ -r "$POSTGRES_DUMP" ] || {
+  echo "Dump PostgreSQL absent : $POSTGRES_DUMP" >&2
+  exit 1
+}
+[ -r "$MARIADB_DUMP" ] || {
+  echo "Dump MariaDB absent : $MARIADB_DUMP" >&2
+  exit 1
+}
+
+CONFIG="$INSTALL_ROOT/config/vps.env"
+SECRETS="$INSTALL_ROOT/config/secrets.env"
+if [ ! -r "$CONFIG" ] || [ ! -r "$SECRETS" ]; then
+  echo "Configuration canonique absente sous $INSTALL_ROOT/config." >&2
+  exit 1
+fi
+
+# shellcheck disable=SC1090
+. "$CONFIG"
+# shellcheck disable=SC1090
+. "$SECRETS"
+
+postgres_id=$(vps-compose databases ps -q postgres)
+mariadb_id=$(vps-compose databases ps -q mariadb)
+if [ -z "$postgres_id" ] || [ -z "$mariadb_id" ]; then
+  echo "Les deux moteurs de production doivent être actifs." >&2
+  exit 1
+fi
+
+postgres_image=$(docker inspect --format '{{.Config.Image}}' "$postgres_id")
+mariadb_image=$(docker inspect --format '{{.Config.Image}}' "$mariadb_id")
+
+suffix=$$
+postgres_name="vps-restore-test-postgres-$suffix"
+mariadb_name="vps-restore-test-mariadb-$suffix"
+postgres_volume="vps_restore_test_postgres_$suffix"
+mariadb_volume="vps_restore_test_mariadb_$suffix"
+secret_dir=$(mktemp -d /run/vps-restore-test.XXXXXX)
+install -m 0600 /dev/null "$secret_dir/postgres-password"
+install -m 0600 /dev/null "$secret_dir/mariadb-password"
+printf '%s' "$POSTGRES_ADMIN_PASSWORD" > "$secret_dir/postgres-password"
+printf '%s' "$MARIADB_ADMIN_PASSWORD" > "$secret_dir/mariadb-password"
+
+install -d -m 0750 "$REPORT_DIR"
+install -d -m 0700 "$STATUS_DIR" /run/lock
+exec 9>/run/lock/vps-restore-test.lock
+flock -n 9 || {
+  echo "Un test de restauration est déjà en cours." >&2
+  exit 1
+}
+
+exec 3>&1 4>&2
+exec > "$REPORT" 2>&1
+
+cleanup() {
+  rc=$?
+  docker rm -f "$postgres_name" "$mariadb_name" >/dev/null 2>&1 || true
+  docker volume rm "$postgres_volume" "$mariadb_volume" >/dev/null 2>&1 || true
+  rm -rf -- "$secret_dir"
+  chmod 0640 "$REPORT" 2>/dev/null || true
+  chown root:adm "$REPORT" 2>/dev/null || true
+  cat "$REPORT" >&3
+  return "$rc"
+}
+trap cleanup EXIT
+trap 'exit 130' HUP INT TERM
+
+wait_for_postgres() {
+  attempts=0
+  until docker exec "$postgres_name" pg_isready -U postgres >/dev/null 2>&1; do
+    attempts=$((attempts + 1))
+    [ "$attempts" -lt 60 ] || return 1
+    sleep 2
+  done
+}
+
+wait_for_mariadb() {
+  attempts=0
+  until docker exec "$mariadb_name" \
+    healthcheck.sh --connect --innodb_initialized >/dev/null 2>&1; do
+    attempts=$((attempts + 1))
+    [ "$attempts" -lt 60 ] || return 1
+    sleep 2
+  done
+}
+
+echo "===== Test isolé de restauration ====="
+date -Is
+echo "Sauvegarde : $BACKUP_DIR"
+echo "Image PostgreSQL : $postgres_image"
+echo "Image MariaDB : $mariadb_image"
+
+docker volume create "$postgres_volume" >/dev/null
+docker run -d \
+  --name "$postgres_name" \
+  --network none \
+  --memory "${POSTGRES_MEMORY_LIMIT:-512m}" \
+  -e POSTGRES_PASSWORD_FILE=/run/secrets/postgres-password \
+  -v "$postgres_volume:/var/lib/postgresql/data" \
+  -v "$secret_dir/postgres-password:/run/secrets/postgres-password:ro" \
+  "$postgres_image" >/dev/null
+wait_for_postgres
+
+echo "Restauration PostgreSQL"
+gzip -dc "$POSTGRES_DUMP" \
+  | docker exec -i "$postgres_name" \
+      psql -X --set=ON_ERROR_STOP=1 --username postgres --dbname postgres
+
+for database in linkwarden ttrss; do
+  found=$(
+    docker exec "$postgres_name" \
+      psql -X --tuples-only --no-align --username postgres --dbname postgres \
+        --command "SELECT 1 FROM pg_database WHERE datname='$database'"
+  )
+  [ "$found" = 1 ] || {
+    echo "Base PostgreSQL absente après restauration : $database" >&2
+    exit 1
+  }
+  docker exec "$postgres_name" \
+    psql -X --username postgres --dbname "$database" --command 'SELECT 1' \
+    >/dev/null
+done
+docker exec "$postgres_name" vacuumdb --all --analyze --username postgres
+
+docker volume create "$mariadb_volume" >/dev/null
+docker run -d \
+  --name "$mariadb_name" \
+  --network none \
+  --memory "${MARIADB_MEMORY_LIMIT:-512m}" \
+  -e MARIADB_ROOT_PASSWORD_FILE=/run/secrets/mariadb-password \
+  -v "$mariadb_volume:/var/lib/mysql" \
+  -v "$secret_dir/mariadb-password:/run/secrets/mariadb-password:ro" \
+  "$mariadb_image" >/dev/null
+wait_for_mariadb
+
+echo "Restauration MariaDB"
+gzip -dc "$MARIADB_DUMP" \
+  | docker exec -i "$mariadb_name" sh -c \
+      'exec mariadb --user=root --password="$(cat /run/secrets/mariadb-password)"'
+
+for database in davis freshrss web; do
+  found=$(
+    docker exec "$mariadb_name" sh -c \
+      "exec mariadb --batch --skip-column-names --user=root \
+        --password=\"\$(cat /run/secrets/mariadb-password)\" \
+        --execute \"SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME='$database'\""
+  )
+  [ "$found" = "$database" ] || {
+    echo "Base MariaDB absente après restauration : $database" >&2
+    exit 1
+  }
+  docker exec "$mariadb_name" sh -c \
+    "exec mariadb --user=root \
+      --password=\"\$(cat /run/secrets/mariadb-password)\" \
+      --database '$database' --execute 'SELECT 1'" >/dev/null
+done
+
+date +%s > "$STATUS_DIR/restore-test-success"
+echo "Résultat : restauration PostgreSQL et MariaDB validée."

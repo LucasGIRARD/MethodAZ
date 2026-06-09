@@ -1,0 +1,129 @@
+#!/bin/sh
+set -eu
+umask 077
+
+FLAG_FILE=${FLAG_FILE:-/etc/default/vps-maintenance}
+STATUS_DIR=${STATUS_DIR:-/var/lib/vps-maintenance}
+
+if [ -r "$FLAG_FILE" ]; then
+  # shellcheck disable=SC1090
+  . "$FLAG_FILE"
+fi
+
+ENABLE_REMOTE_BACKUP=${ENABLE_REMOTE_BACKUP:-false}
+RESTIC_REPOSITORY_FILE=${RESTIC_REPOSITORY_FILE:-/etc/vps-backup/restic-repository}
+RESTIC_PASSWORD_FILE=${RESTIC_PASSWORD_FILE:-/etc/vps-backup/restic-password}
+RESTIC_ENV_FILE=${RESTIC_ENV_FILE:-/etc/vps-backup/restic.env}
+REMOTE_BACKUP_KEEP_DAILY=${REMOTE_BACKUP_KEEP_DAILY:-7}
+REMOTE_BACKUP_KEEP_WEEKLY=${REMOTE_BACKUP_KEEP_WEEKLY:-5}
+REMOTE_BACKUP_KEEP_MONTHLY=${REMOTE_BACKUP_KEEP_MONTHLY:-12}
+BACKUP_ROOT=${BACKUP_ROOT:-/opt/selfhosted/backups/files}
+RESTIC_CACHE_DIR=${RESTIC_CACHE_DIR:-/var/cache/restic}
+export RESTIC_REPOSITORY_FILE RESTIC_PASSWORD_FILE RESTIC_CACHE_DIR
+
+[ "$(id -u)" -eq 0 ] || {
+  echo "Exécuter cette commande avec sudo ou comme root." >&2
+  exit 1
+}
+
+case "$ENABLE_REMOTE_BACKUP" in
+  true|TRUE|1|yes|YES) ;;
+  *)
+    echo "Sauvegarde externe désactivée dans $FLAG_FILE."
+    exit 0
+    ;;
+esac
+
+command -v restic >/dev/null 2>&1 || {
+  echo "Restic est introuvable." >&2
+  exit 1
+}
+
+for file in "$RESTIC_REPOSITORY_FILE" "$RESTIC_PASSWORD_FILE" "$RESTIC_ENV_FILE"; do
+  [ -r "$file" ] || {
+    echo "Fichier Restic absent ou illisible : $file" >&2
+    exit 1
+  }
+  mode=$(stat -c '%a' "$file")
+  case "$mode" in
+    400|600) ;;
+    *)
+      echo "Le fichier $file doit avoir le mode 0600 ou 0400." >&2
+      exit 1
+      ;;
+  esac
+done
+
+set -a
+# shellcheck disable=SC1090
+. "$RESTIC_ENV_FILE"
+set +a
+
+install -d -m 0700 "$STATUS_DIR" "$RESTIC_CACHE_DIR" /run/lock
+exec 9>/run/lock/vps-backup-remote.lock
+flock -n 9 || {
+  echo "Une opération Restic est déjà en cours." >&2
+  exit 1
+}
+
+latest_backup() {
+  find "$BACKUP_ROOT" -mindepth 1 -maxdepth 1 -type d \
+    -name '20??-??-??_*' -printf '%f\n' \
+    | sort \
+    | tail -n 1
+}
+
+assert_repository() {
+  restic snapshots --compact >/dev/null 2>&1 || {
+    echo "Dépôt Restic indisponible ou non initialisé." >&2
+    echo "Exécuter d'abord : sudo vps-backup-remote init" >&2
+    exit 1
+  }
+}
+
+action=${1:-backup}
+case "$action" in
+  init)
+    restic init
+    ;;
+  backup)
+    assert_repository
+    backup_name=$(latest_backup)
+    [ -n "$backup_name" ] || {
+      echo "Aucune sauvegarde locale à externaliser." >&2
+      exit 1
+    }
+    backup_path="$BACKUP_ROOT/$backup_name"
+    restic backup \
+      --host "$(hostname)" \
+      --tag vps \
+      "$backup_path"
+    restic forget \
+      --host "$(hostname)" \
+      --tag vps \
+      --keep-daily "$REMOTE_BACKUP_KEEP_DAILY" \
+      --keep-weekly "$REMOTE_BACKUP_KEEP_WEEKLY" \
+      --keep-monthly "$REMOTE_BACKUP_KEEP_MONTHLY"
+    date +%s > "$STATUS_DIR/remote-backup-success"
+    echo "Sauvegarde externe terminée : $backup_name"
+    ;;
+  maintain)
+    assert_repository
+    restic forget \
+      --host "$(hostname)" \
+      --tag vps \
+      --keep-daily "$REMOTE_BACKUP_KEEP_DAILY" \
+      --keep-weekly "$REMOTE_BACKUP_KEEP_WEEKLY" \
+      --keep-monthly "$REMOTE_BACKUP_KEEP_MONTHLY" \
+      --prune
+    restic check
+    ;;
+  snapshots)
+    assert_repository
+    restic snapshots --host "$(hostname)" --tag vps
+    ;;
+  *)
+    echo "Usage : vps-backup-remote {init|backup|maintain|snapshots}" >&2
+    exit 2
+    ;;
+esac

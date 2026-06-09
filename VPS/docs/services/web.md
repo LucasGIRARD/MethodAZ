@@ -46,9 +46,18 @@ Les messages rejoignent journald par le pilote Docker et suivent sa rétention.
 /opt/selfhosted/databases/mariadb
 ```
 
-Les variables `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER` et `DB_PASSWORD`
-sont fournies au conteneur PHP. L'application doit les lire sans recopier le
-mot de passe dans son code source.
+Les variables `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER` et
+`DB_PASSWORD_FILE` sont fournies au conteneur PHP. Le mot de passe est monté
+dans `/run/secrets/web_db_password`.
+
+Exemple PHP :
+
+```php
+$password = trim(file_get_contents(getenv('DB_PASSWORD_FILE')));
+```
+
+L'application ne doit pas recopier cette valeur dans son code source ni dans
+ses journaux.
 
 L'image ajoute uniquement `mysqli`, `pdo_mysql` et OPcache à la base PHP
 officielle. Le digest de cette base est inscrit dans

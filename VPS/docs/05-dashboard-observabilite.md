@@ -7,6 +7,7 @@ Déployer un tableau de bord Grafana en lecture seule couvrant :
 - Debian, le processeur, la mémoire, le réseau et la partition racine ;
 - le démon Docker et les conteneurs ;
 - les besoins de maintenance locale ;
+- les derniers succès des sauvegardes et du test de restauration ;
 - les journaux systemd, Docker et Nginx, de manière facultative.
 
 La configuration prête à déployer se trouve dans
@@ -45,11 +46,14 @@ Grafana est publié par le proxy Nginx en HTTPS avec authentification HTTP.
 | Node Exporter | CPU, mémoire, charge, disques, racine, inodes, réseau, processus | Prometheus, 7 jours et 512 Mio |
 | Docker | état interne du démon | Prometheus, 7 jours et 512 Mio |
 | cAdvisor, facultatif | CPU, mémoire, réseau et E/S par conteneur | Prometheus, 7 jours et 512 Mio |
-| Script local | mises à jour APT, redémarrage, systemd, Fail2ban, compteurs Docker, flag des journaux | Prometheus, 7 jours et 512 Mio |
+| Script local | mises à jour APT, redémarrage, systemd, Fail2ban, conteneurs défaillants, sauvegardes et test de restauration | Prometheus, 7 jours et 512 Mio |
 | Alloy et Loki | journald, conteneurs Docker et fichiers Nginx | 7 jours |
 
 Le tableau de bord contient une section de journaux repliée par défaut. Si
 Loki est désactivé, les autres panneaux continuent de fonctionner.
+
+Les healthchecks Docker restent visibles dans le panneau « Conteneurs
+défaillants » même lorsque cAdvisor est désactivé.
 
 ## Déployer les fichiers
 

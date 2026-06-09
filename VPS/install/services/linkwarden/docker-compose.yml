@@ -18,6 +18,17 @@ services:
       - frontend
       - database
     pids_limit: 256
+    mem_limit: ${LINKWARDEN_MEMORY_LIMIT:-768m}
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "const http=require('http');const r=http.get('http://127.0.0.1:3000/',s=>process.exit(s.statusCode<500?0:1));r.on('error',()=>process.exit(1));r.setTimeout(5000,()=>{r.destroy();process.exit(1)})"
+      interval: 30s
+      timeout: 8s
+      retries: 5
+      start_period: 45s
     security_opt:
       - no-new-privileges:true
 

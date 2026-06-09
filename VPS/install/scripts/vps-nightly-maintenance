@@ -22,6 +22,18 @@ date -Is
 
 run_task "Sauvegarde" /usr/local/sbin/vps-backup
 
+case "${ENABLE_REMOTE_BACKUP:-false}" in
+  true|TRUE|1|yes|YES)
+    run_task "Sauvegarde externe chiffrée" \
+      /usr/local/sbin/vps-backup-remote backup
+    ;;
+esac
+
+if [ "$(date +%d)" = 01 ]; then
+  run_task "Test mensuel de restauration" \
+    /usr/local/sbin/vps-restore-test
+fi
+
 if [ -x /usr/local/sbin/vps-gateway ]; then
   run_task "Renouvellement Certbot" /usr/local/sbin/vps-gateway renew
 fi
@@ -35,6 +47,18 @@ if [ "$(date +%u)" -eq 7 ] && docker scout version >/dev/null 2>&1; then
     0) echo "OK : audit des images" ;;
     2) echo "Alerte : vulnérabilités élevées ou critiques détectées." >&2 ;;
     *) echo "ÉCHEC ($rc) : audit des images" >&2; failures=1 ;;
+  esac
+fi
+
+if [ "$(date +%u)" -eq 7 ]; then
+  run_task "Audit des secrets Compose" \
+    /usr/local/sbin/vps-secret-audit
+
+  case "${ENABLE_REMOTE_BACKUP:-false}" in
+    true|TRUE|1|yes|YES)
+      run_task "Maintenance hebdomadaire Restic" \
+        /usr/local/sbin/vps-backup-remote maintain
+      ;;
   esac
 fi
 

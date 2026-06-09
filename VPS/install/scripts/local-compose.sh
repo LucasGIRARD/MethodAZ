@@ -1,11 +1,12 @@
 #!/bin/sh
 set -eu
 
-SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-INSTALL_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
+SCRIPT_DIR=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
+INSTALL_DIR=$(CDPATH='' cd -- "$SCRIPT_DIR/.." && pwd)
 LOCAL_DIR="$INSTALL_DIR/local"
 WORK_DIR="$LOCAL_DIR/work"
 CONFIG_FILE="$LOCAL_DIR/vps.env"
+CONFIG_EXAMPLE="$LOCAL_DIR/vps.env.example"
 SECRETS_FILE="$LOCAL_DIR/secrets.env"
 SECRETS_EXAMPLE="$LOCAL_DIR/secrets.env.example"
 CORE_SERVICES="linkwarden davis freshrss ttrss web"
@@ -17,9 +18,15 @@ SERVICE=${2:-all}
 
 initialize_local() {
   mkdir -p "$WORK_DIR"
+  if [ ! -f "$CONFIG_FILE" ]; then
+    cp "$CONFIG_EXAMPLE" "$CONFIG_FILE"
+    chmod 0600 "$CONFIG_FILE" 2>/dev/null || true
+    echo "Configuration locale créée : $CONFIG_FILE"
+  fi
   if [ ! -f "$SECRETS_FILE" ]; then
     cp "$SECRETS_EXAMPLE" "$SECRETS_FILE"
     chmod 0600 "$SECRETS_FILE" 2>/dev/null || true
+    echo "Secrets locaux créés : $SECRETS_FILE"
   fi
   grep -q '^POSTGRES_ADMIN_PASSWORD=' "$SECRETS_FILE" \
     || printf '%s\n' 'POSTGRES_ADMIN_PASSWORD=local_postgres_admin' \
@@ -93,16 +100,20 @@ validate_all() {
     --profile containers --profile logs config --quiet
 }
 
-command -v docker >/dev/null 2>&1 || {
-  echo "Docker est introuvable." >&2
-  exit 1
-}
-docker compose version >/dev/null
 initialize_local
+if [ "$ACTION" != init ]; then
+  command -v docker >/dev/null 2>&1 || {
+    echo "Docker est introuvable." >&2
+    exit 1
+  }
+  docker compose version >/dev/null
+fi
 
 case "$ACTION" in
   init)
     echo "Environnement local préparé dans $WORK_DIR"
+    echo "Configuration : $CONFIG_FILE"
+    echo "Secrets : $SECRETS_FILE"
     ;;
   validate)
     validate_all

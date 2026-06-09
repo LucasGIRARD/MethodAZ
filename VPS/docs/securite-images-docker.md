@@ -22,7 +22,8 @@ risque devient significatif.
 | Moyen | La mutualisation SQL augmente l'impact d'une panne moteur | Deux moteurs seulement, comptes séparés, réseaux Docker distincts et dumps nocturnes |
 | Moyen | Node Exporter lit la racine et utilise le PID de l'hôte | Port local, racine en lecture seule, capacités supprimées |
 | Moyen | Alloy lit journald et les journaux Nginx | Désactivable avec `ENABLE_LOGS=false`, montages en lecture seule |
-| Faible | Un emballement de processus peut épuiser le VPS | `pids_limit` appliqué aux conteneurs |
+| Faible | Un emballement de processus peut épuiser le VPS | `pids_limit` et `mem_limit` appliqués aux conteneurs |
+| Faible | Un processus actif peut ne plus répondre | Healthchecks applicatifs et métrique des conteneurs défaillants |
 
 L'appartenance au groupe `docker` doit être considérée comme un accès root.
 Ne jamais donner ce groupe à un compte applicatif ou SFTP.
@@ -36,7 +37,7 @@ Vérification effectuée le 7 juin 2026.
 | Linkwarden | `v2.14.1` |
 | Davis | `4.4.0` |
 | FreshRSS | `1.29.1` |
-| Tiny Tiny RSS | canal `latest`, obligatoirement verrouillé par digest |
+| Tiny Tiny RSS | digest multiarchitecture relevé le 9 juin 2026 |
 | PostgreSQL | `16.14-alpine3.23` |
 | MariaDB | `11.8.8-noble` |
 | PHP Apache | base officielle `8.4.21-apache-trixie`, extensions MySQL et OPcache construites localement |
