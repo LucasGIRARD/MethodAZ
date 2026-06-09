@@ -37,6 +37,13 @@ Il n'est pas nécessaire de cloner MethodAZ. Télécharger uniquement le bundle
 [Téléchargement depuis GitHub](telechargement-github.md), puis exécuter les
 commandes suivantes depuis la racine du bundle.
 
+## Télécharger les fichiers
+
+Il n'est pas nécessaire de cloner MethodAZ. Télécharger uniquement le bundle
+`VPS` avec les scripts PowerShell ou Bash documentés dans
+[Téléchargement depuis GitHub](telechargement-github.md), puis exécuter les
+commandes suivantes depuis la racine du bundle.
+
 ## Périmètre
 
 | Projet | Validation Compose | Exécution locale |
