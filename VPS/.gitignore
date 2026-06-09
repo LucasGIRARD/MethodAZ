@@ -1,9 +1,11 @@
 # Fichiers locaux contenant des secrets ou une configuration réelle.
 install/config/vps.env
 install/config/secrets.env
+install/config/restic.env
 install/keys/*.pub
 install/keys/*.pem
 install/keys/id_*
+install/local/vps.env
 install/local/secrets.env
 install/local/work/
 

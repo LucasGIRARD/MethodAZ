@@ -13,6 +13,7 @@ $InstallDir = Split-Path -Parent $PSScriptRoot
 $LocalDir = Join-Path $InstallDir "local"
 $WorkDir = Join-Path $LocalDir "work"
 $ConfigFile = Join-Path $LocalDir "vps.env"
+$ConfigExample = Join-Path $LocalDir "vps.env.example"
 $SecretsFile = Join-Path $LocalDir "secrets.env"
 $SecretsExample = Join-Path $LocalDir "secrets.env.example"
 
@@ -34,14 +35,23 @@ function Assert-Docker {
 function Initialize-Local {
     New-Item -ItemType Directory -Force -Path $WorkDir | Out-Null
 
+    if (-not (Test-Path -LiteralPath $ConfigFile)) {
+        Copy-Item -LiteralPath $ConfigExample -Destination $ConfigFile
+        Write-Host "Configuration locale créée : $ConfigFile"
+    }
     if (-not (Test-Path -LiteralPath $SecretsFile)) {
         Copy-Item -LiteralPath $SecretsExample -Destination $SecretsFile
+        Write-Host "Secrets locaux créés : $SecretsFile"
     }
     if (-not (Select-String -LiteralPath $SecretsFile -Pattern "^POSTGRES_ADMIN_PASSWORD=" -Quiet)) {
         Add-Content -LiteralPath $SecretsFile -Encoding utf8 -Value "POSTGRES_ADMIN_PASSWORD=local_postgres_admin"
     }
     if (-not (Select-String -LiteralPath $SecretsFile -Pattern "^MARIADB_ADMIN_PASSWORD=" -Quiet)) {
         Add-Content -LiteralPath $SecretsFile -Encoding utf8 -Value "MARIADB_ADMIN_PASSWORD=local_mariadb_admin"
+    }
+
+    if ($IsLinux -or $IsMacOS) {
+        & chmod 600 $ConfigFile $SecretsFile 2>$null
     }
 
     foreach ($name in $ManagedStacks) {
@@ -138,12 +148,16 @@ function Test-AllCompose {
     }
 }
 
-Assert-Docker
 Initialize-Local
+if ($Action -ne "init") {
+    Assert-Docker
+}
 
 switch ($Action) {
     "init" {
         Write-Host "Environnement local préparé dans $WorkDir"
+        Write-Host "Configuration : $ConfigFile"
+        Write-Host "Secrets : $SecretsFile"
     }
     "validate" {
         Test-AllCompose

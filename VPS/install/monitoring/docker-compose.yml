@@ -38,6 +38,15 @@ services:
     cap_drop:
       - ALL
     pids_limit: 256
+    mem_limit: ${GRAFANA_MEMORY_LIMIT:-384m}
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - wget -q -O /dev/null http://127.0.0.1:3000/api/health
+      interval: 30s
+      timeout: 8s
+      retries: 5
+      start_period: 30s
     security_opt:
       - no-new-privileges:true
     restart: unless-stopped
@@ -61,6 +70,7 @@ services:
     cap_drop:
       - ALL
     pids_limit: 256
+    mem_limit: ${PROMETHEUS_MEMORY_LIMIT:-512m}
     security_opt:
       - no-new-privileges:true
     restart: unless-stopped
@@ -83,6 +93,7 @@ services:
     cap_drop:
       - ALL
     pids_limit: 128
+    mem_limit: ${NODE_EXPORTER_MEMORY_LIMIT:-96m}
     security_opt:
       - no-new-privileges:true
     restart: unless-stopped
@@ -111,6 +122,7 @@ services:
     cap_drop:
       - ALL
     pids_limit: 256
+    mem_limit: ${CADVISOR_MEMORY_LIMIT:-384m}
     security_opt:
       - no-new-privileges:true
     restart: unless-stopped
@@ -132,6 +144,7 @@ services:
     cap_add:
       - CHOWN
     pids_limit: 32
+    mem_limit: ${LOKI_INIT_MEMORY_LIMIT:-64m}
     security_opt:
       - no-new-privileges:true
     restart: "no"
@@ -153,6 +166,7 @@ services:
     cap_drop:
       - ALL
     pids_limit: 256
+    mem_limit: ${LOKI_MEMORY_LIMIT:-512m}
     security_opt:
       - no-new-privileges:true
     depends_on:
@@ -184,6 +198,7 @@ services:
     cap_drop:
       - ALL
     pids_limit: 256
+    mem_limit: ${ALLOY_MEMORY_LIMIT:-384m}
     security_opt:
       - no-new-privileges:true
     depends_on:

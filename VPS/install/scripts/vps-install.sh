@@ -2,8 +2,8 @@
 set -eu
 export LC_ALL=C
 
-SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-INSTALL_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
+SCRIPT_DIR=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
+INSTALL_DIR=$(CDPATH='' cd -- "$SCRIPT_DIR/.." && pwd)
 CONFIG="$INSTALL_DIR/config/vps.env"
 SECRETS="$INSTALL_DIR/config/secrets.env"
 PHASE=all
@@ -102,6 +102,56 @@ load_configuration() {
   : "${TIMEZONE:?TIMEZONE manquant}"
 }
 
+apply_resource_profile() {
+  case "${RESOURCE_PROFILE:-VPS_4G}" in
+    VPS_2G)
+      : "${MARIADB_MEMORY_LIMIT:=320m}"
+      : "${POSTGRES_MEMORY_LIMIT:=320m}"
+      : "${LINKWARDEN_MEMORY_LIMIT:=384m}"
+      : "${DAVIS_MEMORY_LIMIT:=192m}"
+      : "${FRESHRSS_MEMORY_LIMIT:=192m}"
+      : "${TTRSS_APP_MEMORY_LIMIT:=256m}"
+      : "${TTRSS_UPDATER_MEMORY_LIMIT:=128m}"
+      : "${TTRSS_NGINX_MEMORY_LIMIT:=64m}"
+      : "${KILL_NEWSLETTER_MEMORY_LIMIT:=192m}"
+      : "${WEB_MEMORY_LIMIT:=192m}"
+      : "${NGINX_MEMORY_LIMIT:=96m}"
+      : "${CERTBOT_MEMORY_LIMIT:=128m}"
+      : "${GRAFANA_MEMORY_LIMIT:=256m}"
+      : "${PROMETHEUS_MEMORY_LIMIT:=256m}"
+      : "${NODE_EXPORTER_MEMORY_LIMIT:=64m}"
+      : "${CADVISOR_MEMORY_LIMIT:=192m}"
+      : "${LOKI_INIT_MEMORY_LIMIT:=64m}"
+      : "${LOKI_MEMORY_LIMIT:=256m}"
+      : "${ALLOY_MEMORY_LIMIT:=192m}"
+      ;;
+    VPS_4G)
+      : "${MARIADB_MEMORY_LIMIT:=512m}"
+      : "${POSTGRES_MEMORY_LIMIT:=512m}"
+      : "${LINKWARDEN_MEMORY_LIMIT:=768m}"
+      : "${DAVIS_MEMORY_LIMIT:=384m}"
+      : "${FRESHRSS_MEMORY_LIMIT:=384m}"
+      : "${TTRSS_APP_MEMORY_LIMIT:=512m}"
+      : "${TTRSS_UPDATER_MEMORY_LIMIT:=256m}"
+      : "${TTRSS_NGINX_MEMORY_LIMIT:=96m}"
+      : "${KILL_NEWSLETTER_MEMORY_LIMIT:=384m}"
+      : "${WEB_MEMORY_LIMIT:=384m}"
+      : "${NGINX_MEMORY_LIMIT:=128m}"
+      : "${CERTBOT_MEMORY_LIMIT:=128m}"
+      : "${GRAFANA_MEMORY_LIMIT:=384m}"
+      : "${PROMETHEUS_MEMORY_LIMIT:=512m}"
+      : "${NODE_EXPORTER_MEMORY_LIMIT:=96m}"
+      : "${CADVISOR_MEMORY_LIMIT:=384m}"
+      : "${LOKI_INIT_MEMORY_LIMIT:=64m}"
+      : "${LOKI_MEMORY_LIMIT:=512m}"
+      : "${ALLOY_MEMORY_LIMIT:=384m}"
+      ;;
+    *)
+      die "RESOURCE_PROFILE doit valoir VPS_2G ou VPS_4G"
+      ;;
+  esac
+}
+
 check_debian() {
   [ -r /etc/os-release ] || die "/etc/os-release absent"
   # shellcheck disable=SC1091
@@ -136,6 +186,11 @@ install_base() {
     ca-certificates curl fail2ban git iptables iptables-persistent jq \
     logrotate nano needrestart openssh-server openssl rsync sudo \
     unattended-upgrades
+  case "${ENABLE_REMOTE_BACKUP:-false}" in
+    true|TRUE|1|yes|YES)
+      DEBIAN_FRONTEND=noninteractive apt-get install -y restic
+      ;;
+  esac
 
   stage_installer
 
@@ -375,6 +430,14 @@ install_docker() {
   [ "${INSTALL_DOCKER:-true}" = true ] || return 0
   log "Docker depuis le dépôt officiel"
 
+  case "${ENABLE_REMOTE_BACKUP:-false}" in
+    true|TRUE|1|yes|YES)
+      if ! command -v restic >/dev/null 2>&1; then
+        DEBIAN_FRONTEND=noninteractive apt-get install -y restic
+      fi
+      ;;
+  esac
+
   for package in docker.io docker-doc docker-compose podman-docker containerd runc; do
     apt-get remove -y "$package" >/dev/null 2>&1 || true
   done
@@ -431,6 +494,12 @@ EOF
   install -m 0755 "$SCRIPT_DIR/vps-image-lock" /usr/local/sbin/vps-image-lock
   install -m 0755 "$SCRIPT_DIR/vps-image-audit" /usr/local/sbin/vps-image-audit
   install -m 0755 "$SCRIPT_DIR/vps-backup" /usr/local/sbin/vps-backup
+  install -m 0755 "$SCRIPT_DIR/vps-backup-remote" \
+    /usr/local/sbin/vps-backup-remote
+  install -m 0755 "$SCRIPT_DIR/vps-restore-test" \
+    /usr/local/sbin/vps-restore-test
+  install -m 0755 "$SCRIPT_DIR/vps-secret-audit" \
+    /usr/local/sbin/vps-secret-audit
   install -m 0755 "$SCRIPT_DIR/vps-health-report" \
     /usr/local/sbin/vps-health-report
   install -m 0755 "$SCRIPT_DIR/vps-nightly-maintenance" \
@@ -445,9 +514,24 @@ EOF
   cat > /etc/default/vps-maintenance <<EOF
 BACKUP_RETENTION_DAYS=${BACKUP_RETENTION_DAYS:-7}
 BACKUP_MIN_FREE_MB=${BACKUP_MIN_FREE_MB:-1024}
+ENABLE_REMOTE_BACKUP=${ENABLE_REMOTE_BACKUP:-false}
+RESTIC_REPOSITORY_FILE=${RESTIC_REPOSITORY_FILE:-/etc/vps-backup/restic-repository}
+RESTIC_PASSWORD_FILE=${RESTIC_PASSWORD_FILE:-/etc/vps-backup/restic-password}
+RESTIC_ENV_FILE=${RESTIC_ENV_FILE:-/etc/vps-backup/restic.env}
+REMOTE_BACKUP_KEEP_DAILY=${REMOTE_BACKUP_KEEP_DAILY:-7}
+REMOTE_BACKUP_KEEP_WEEKLY=${REMOTE_BACKUP_KEEP_WEEKLY:-5}
+REMOTE_BACKUP_KEEP_MONTHLY=${REMOTE_BACKUP_KEEP_MONTHLY:-12}
 EOF
   chmod 0644 /etc/default/vps-maintenance
   install -d -m 0700 /opt/selfhosted/backups/files
+  install -d -m 0700 /var/lib/vps-maintenance
+  case "${ENABLE_REMOTE_BACKUP:-false}" in
+    true|TRUE|1|yes|YES)
+      install -d -m 0700 /etc/vps-backup /var/cache/restic
+      install -m 0600 "$INSTALL_DIR/config/restic.env.example" \
+        /etc/vps-backup/restic.env.example
+      ;;
+  esac
   systemctl daemon-reload
   systemctl enable --now vps-nightly-maintenance.timer
   rm -f "$daemon_fragment" "$daemon_merged"
@@ -484,8 +568,10 @@ install_databases() {
 DATABASE_NETWORK_PREFIX=${DATABASE_NETWORK_PREFIX:-vps-db}
 POSTGRES_VERSION=$POSTGRES_VERSION
 POSTGRES_ADMIN_PASSWORD=$POSTGRES_ADMIN_PASSWORD
+POSTGRES_MEMORY_LIMIT=$POSTGRES_MEMORY_LIMIT
 MARIADB_VERSION=$MARIADB_VERSION
 MARIADB_ADMIN_PASSWORD=$MARIADB_ADMIN_PASSWORD
+MARIADB_MEMORY_LIMIT=$MARIADB_MEMORY_LIMIT
 LINKWARDEN_DB_PASSWORD=$LINKWARDEN_DB_PASSWORD
 DAVIS_DB_PASSWORD=$DAVIS_DB_PASSWORD
 FRESHRSS_DB_PASSWORD=$FRESHRSS_DB_PASSWORD
@@ -518,6 +604,7 @@ LINKWARDEN_DISABLE_REGISTRATION=${LINKWARDEN_DISABLE_REGISTRATION:-false}
 TIMEZONE=$TIMEZONE
 LINKWARDEN_DB_PASSWORD=$LINKWARDEN_DB_PASSWORD
 LINKWARDEN_NEXTAUTH_SECRET=$LINKWARDEN_NEXTAUTH_SECRET
+LINKWARDEN_MEMORY_LIMIT=$LINKWARDEN_MEMORY_LIMIT
 EOF
       ;;
     davis)
@@ -530,6 +617,7 @@ TIMEZONE=$TIMEZONE
 DAVIS_DB_PASSWORD=$DAVIS_DB_PASSWORD
 DAVIS_APP_SECRET=$DAVIS_APP_SECRET
 DAVIS_ADMIN_PASSWORD=$DAVIS_ADMIN_PASSWORD
+DAVIS_MEMORY_LIMIT=$DAVIS_MEMORY_LIMIT
 EOF
       ;;
     freshrss)
@@ -538,6 +626,7 @@ FRESHRSS_VERSION=$FRESHRSS_VERSION
 DATABASE_NETWORK_PREFIX=${DATABASE_NETWORK_PREFIX:-vps-db}
 TIMEZONE=$TIMEZONE
 FRESHRSS_DB_PASSWORD=$FRESHRSS_DB_PASSWORD
+FRESHRSS_MEMORY_LIMIT=$FRESHRSS_MEMORY_LIMIT
 EOF
       ;;
     ttrss)
@@ -549,6 +638,9 @@ TTRSS_DOMAIN=$TTRSS_DOMAIN
 TTRSS_URL=${TTRSS_URL:-https://$TTRSS_DOMAIN/}
 TTRSS_DB_PASSWORD=$TTRSS_DB_PASSWORD
 TTRSS_ADMIN_PASSWORD=$TTRSS_ADMIN_PASSWORD
+TTRSS_APP_MEMORY_LIMIT=$TTRSS_APP_MEMORY_LIMIT
+TTRSS_UPDATER_MEMORY_LIMIT=$TTRSS_UPDATER_MEMORY_LIMIT
+TTRSS_NGINX_MEMORY_LIMIT=$TTRSS_NGINX_MEMORY_LIMIT
 EOF
       ;;
     web)
@@ -558,10 +650,13 @@ WEB_IMAGE_TAG=$WEB_IMAGE_TAG
 DATABASE_NETWORK_PREFIX=${DATABASE_NETWORK_PREFIX:-vps-db}
 WEB_DOMAIN=$WEB_DOMAIN
 WEB_DB_PASSWORD=$WEB_DB_PASSWORD
+WEB_MEMORY_LIMIT=$WEB_MEMORY_LIMIT
 EOF
       ;;
     kill-newsletter)
-      :
+      cat > "$target" <<EOF
+KILL_NEWSLETTER_MEMORY_LIMIT=$KILL_NEWSLETTER_MEMORY_LIMIT
+EOF
       ;;
   esac
   chmod 0600 "$target" 2>/dev/null || true
@@ -611,6 +706,8 @@ TTRSS_DOMAIN=$TTRSS_DOMAIN
 NEWSLETTER_DOMAIN=$NEWSLETTER_DOMAIN
 WEB_DOMAIN=$WEB_DOMAIN
 MONITORING_DOMAIN=$MONITORING_DOMAIN
+NGINX_MEMORY_LIMIT=$NGINX_MEMORY_LIMIT
+CERTBOT_MEMORY_LIMIT=$CERTBOT_MEMORY_LIMIT
 EOF
   chmod 0600 /opt/selfhosted/gateway/.env
 
@@ -645,6 +742,13 @@ LOKI_VERSION=$LOKI_VERSION
 ALLOY_VERSION=$ALLOY_VERSION
 ALPINE_VERSION=$ALPINE_VERSION
 MONITORING_DOMAIN=$MONITORING_DOMAIN
+GRAFANA_MEMORY_LIMIT=$GRAFANA_MEMORY_LIMIT
+PROMETHEUS_MEMORY_LIMIT=$PROMETHEUS_MEMORY_LIMIT
+NODE_EXPORTER_MEMORY_LIMIT=$NODE_EXPORTER_MEMORY_LIMIT
+CADVISOR_MEMORY_LIMIT=$CADVISOR_MEMORY_LIMIT
+LOKI_INIT_MEMORY_LIMIT=$LOKI_INIT_MEMORY_LIMIT
+LOKI_MEMORY_LIMIT=$LOKI_MEMORY_LIMIT
+ALLOY_MEMORY_LIMIT=$ALLOY_MEMORY_LIMIT
 EOF
   chmod 0600 /opt/selfhosted/monitoring/.env
 
@@ -715,6 +819,7 @@ run_phase() {
 
 require_root
 load_configuration
+apply_resource_profile
 check_debian
 
 if [ "$FINALIZE_SSH" = true ]; then

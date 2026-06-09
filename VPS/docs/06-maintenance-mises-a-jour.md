@@ -12,6 +12,8 @@ L'installateur déploie `/usr/local/sbin/vps-backup`. Il produit :
 - un dump logique de l'instance PostgreSQL et de l'instance MariaDB ;
 - une archive des configurations et données applicatives, sans recopier les
   fichiers bruts des bases actives ;
+- une archive de la configuration canonique de l'installateur, secrets
+  compris ;
 - une archive cohérente du volume Grafana après un arrêt bref ;
 - un manifeste daté.
 
@@ -24,12 +26,75 @@ La rétention locale est de 7 jours par défaut. Elle est définie dans
 `/etc/default/vps-maintenance`. La sauvegarde refuse de démarrer s'il reste
 moins de 1 Gio libre.
 
-L'archive contient les clés privées TLS et le fichier d'authentification
-Grafana. Elle doit rester chiffrée, en mode `0600`, et ne jamais être déposée
+La sauvegarde locale est protégée par les permissions root, mais elle n'est pas
+chiffrée au repos. Elle contient notamment les clés privées TLS, les secrets
+applicatifs et l'authentification Grafana. Elle ne doit jamais être déposée
 dans un dépôt Git.
 
-Prévoir ensuite une copie externe : rsync, SFTP, BorgBackup, Restic ou le
-stockage fourni par l'hébergeur.
+## Test automatique des restaurations
+
+Le premier jour de chaque mois, la maintenance lance :
+
+```bash
+sudo vps-restore-test
+```
+
+Le script démarre des conteneurs PostgreSQL et MariaDB temporaires, sans
+réseau, restaure les deux dumps, vérifie les cinq bases attendues, exécute
+`vacuumdb -a -z` sur PostgreSQL, puis détruit les conteneurs et volumes de
+test. Le résultat est écrit dans :
+
+```text
+/var/log/server-checks/restore-test.txt
+```
+
+Ce test vérifie les dumps SQL. La procédure complète sur un nouvel hôte reste
+nécessaire pour valider le système, TLS et le DNS :
+[Restauration complète sur un VPS vierge](procedures/restauration-vps-vierge.md).
+
+## Copie externe chiffrée
+
+Restic est installé uniquement si `ENABLE_REMOTE_BACKUP=true`. Il chiffre les
+données avant leur envoi vers un stockage S3 compatible.
+
+Préparer trois fichiers root :
+
+```bash
+sudo install -d -m 0700 /etc/vps-backup
+printf '%s\n' 's3:https://ENDPOINT/BUCKET/vps' \
+  | sudo tee /etc/vps-backup/restic-repository >/dev/null
+openssl rand -base64 48 \
+  | sudo tee /etc/vps-backup/restic-password >/dev/null
+sudo install -m 0600 install/config/restic.env.example \
+  /etc/vps-backup/restic.env
+sudo nano /etc/vps-backup/restic.env
+sudo chmod 0600 /etc/vps-backup/restic-*
+```
+
+Conserver une copie hors du VPS du mot de passe Restic. Sans ce mot de passe,
+la sauvegarde est irrécupérable.
+
+Activer ensuite dans `install/config/vps.env` :
+
+```bash
+ENABLE_REMOTE_BACKUP=true
+```
+
+Réappliquer les phases `base` et `docker`, puis initialiser une seule fois :
+
+```bash
+sudo vps-install --phase base
+sudo vps-install --phase docker
+sudo vps-backup
+sudo vps-backup-remote init
+sudo vps-backup-remote backup
+sudo vps-backup-remote snapshots
+```
+
+La rétention distante conserve par défaut 7 sauvegardes quotidiennes, 5
+hebdomadaires et 12 mensuelles. Le dimanche, Restic exécute `prune` et
+`check`. Les identifiants S3 doivent être limités au bucket ; activer aussi le
+versionnement ou la rétention immuable proposée par le fournisseur.
 
 ## Fenêtre nocturne
 
@@ -39,7 +104,10 @@ Le fuseau du serveur est configuré avec la valeur `TIMEZONE`, par défaut
 | Heure locale | Tâche |
 | --- | --- |
 | `02:15` à `02:25` | Démarrage aléatoire de la sauvegarde, renouvellement Certbot et rapports |
+| Après la sauvegarde | Copie Restic si elle est activée |
+| Le premier jour du mois | Test isolé de restauration des deux moteurs SQL |
 | Après la sauvegarde, le dimanche | Audit Docker Scout |
+| Le dimanche | Nettoyage et contrôle du dépôt Restic |
 | `04:15` à `04:25` | Mise à jour des listes APT |
 | `04:45` à `04:55` | Installation des correctifs Debian de sécurité |
 | `05:55` au plus tard | Arrêt forcé de la sauvegarde et des contrôles s'ils dépassent leur fenêtre |
@@ -151,3 +219,12 @@ docker ps
 docker system df
 sudo ss -tulpn
 ```
+
+Les procédures de retour arrière sont décrites dans
+[Retour arrière après une mise à jour](procedures/retour-arriere-mise-a-jour.md).
+
+## Références
+
+- [Restic : préparer un dépôt S3](https://restic.readthedocs.io/en/stable/030_preparing_a_new_repo.html)
+- [Restic : rétention et suppression](https://restic.readthedocs.io/en/stable/060_forget.html)
+- [PostgreSQL : sauvegarde et restauration SQL](https://www.postgresql.org/docs/current/backup-dump.html)

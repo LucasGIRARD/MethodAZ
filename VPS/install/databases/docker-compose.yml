@@ -9,10 +9,12 @@ services:
       - --innodb-buffer-pool-size=192M
       - --performance-schema=OFF
     environment:
-      MARIADB_ROOT_PASSWORD: ${MARIADB_ADMIN_PASSWORD}
-      DAVIS_DB_PASSWORD: ${DAVIS_DB_PASSWORD}
-      FRESHRSS_DB_PASSWORD: ${FRESHRSS_DB_PASSWORD}
-      WEB_DB_PASSWORD: ${WEB_DB_PASSWORD}
+      MARIADB_ROOT_PASSWORD_FILE: /run/secrets/mariadb_admin_password
+    secrets:
+      - mariadb_admin_password
+      - davis_db_password
+      - freshrss_db_password
+      - web_db_password
     volumes:
       - ./mariadb:/var/lib/mysql
       - ./init-mariadb.sh:/docker-entrypoint-initdb.d/10-applications.sh:ro
@@ -37,6 +39,7 @@ services:
       timeout: 5s
       retries: 15
     pids_limit: 256
+    mem_limit: ${MARIADB_MEMORY_LIMIT:-512m}
     security_opt:
       - no-new-privileges:true
 
@@ -55,9 +58,11 @@ services:
       - maintenance_work_mem=64MB
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD}
-      LINKWARDEN_DB_PASSWORD: ${LINKWARDEN_DB_PASSWORD}
-      TTRSS_DB_PASSWORD: ${TTRSS_DB_PASSWORD}
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_admin_password
+    secrets:
+      - postgres_admin_password
+      - linkwarden_db_password
+      - ttrss_db_password
     volumes:
       - ./postgres:/var/lib/postgresql/data
       - ./init-postgres.sh:/docker-entrypoint-initdb.d/10-applications.sh:ro
@@ -77,6 +82,7 @@ services:
       timeout: 5s
       retries: 15
     pids_limit: 256
+    mem_limit: ${POSTGRES_MEMORY_LIMIT:-512m}
     security_opt:
       - no-new-privileges:true
 
@@ -96,3 +102,19 @@ networks:
   ttrss:
     name: ${DATABASE_NETWORK_PREFIX:-vps-db}-ttrss
     internal: true
+
+secrets:
+  mariadb_admin_password:
+    environment: MARIADB_ADMIN_PASSWORD
+  postgres_admin_password:
+    environment: POSTGRES_ADMIN_PASSWORD
+  linkwarden_db_password:
+    environment: LINKWARDEN_DB_PASSWORD
+  davis_db_password:
+    environment: DAVIS_DB_PASSWORD
+  freshrss_db_password:
+    environment: FRESHRSS_DB_PASSWORD
+  ttrss_db_password:
+    environment: TTRSS_DB_PASSWORD
+  web_db_password:
+    environment: WEB_DB_PASSWORD

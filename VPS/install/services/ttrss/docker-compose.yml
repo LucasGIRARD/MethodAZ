@@ -20,6 +20,17 @@ services:
       - internal
       - database
     pids_limit: 256
+    mem_limit: ${TTRSS_APP_MEMORY_LIMIT:-512m}
+    healthcheck:
+      test:
+        - CMD
+        - php
+        - -r
+        - "$$s=@fsockopen('127.0.0.1',9000,$$e,$$m,5);exit($$s?0:1);"
+      interval: 30s
+      timeout: 8s
+      retries: 5
+      start_period: 45s
     security_opt:
       - no-new-privileges:true
 
@@ -27,7 +38,8 @@ services:
     image: ${TTRSS_IMAGE}
     restart: unless-stopped
     depends_on:
-      - app
+      app:
+        condition: service_healthy
     command: /opt/tt-rss/updater.sh
     environment:
       TTRSS_DB_TYPE: pgsql
@@ -44,6 +56,7 @@ services:
       - internal
       - database
     pids_limit: 128
+    mem_limit: ${TTRSS_UPDATER_MEMORY_LIMIT:-256m}
     security_opt:
       - no-new-privileges:true
 
@@ -51,7 +64,8 @@ services:
     image: nginx:${NGINX_ALPINE_VERSION}
     restart: unless-stopped
     depends_on:
-      - app
+      app:
+        condition: service_healthy
     ports:
       - "127.0.0.1:3004:80"
     volumes:
@@ -72,6 +86,18 @@ services:
       - SETGID
       - SETUID
     pids_limit: 128
+    mem_limit: ${TTRSS_NGINX_MEMORY_LIMIT:-96m}
+    healthcheck:
+      test:
+        - CMD
+        - wget
+        - -q
+        - --spider
+        - http://127.0.0.1/
+      interval: 30s
+      timeout: 8s
+      retries: 5
+      start_period: 15s
     security_opt:
       - no-new-privileges:true
 

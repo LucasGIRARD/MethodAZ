@@ -1,6 +1,10 @@
 #!/bin/sh
 set -eu
 
+POSTGRES_PASSWORD=$(cat /run/secrets/postgres_admin_password)
+LINKWARDEN_DB_PASSWORD=$(cat /run/secrets/linkwarden_db_password)
+TTRSS_DB_PASSWORD=$(cat /run/secrets/ttrss_db_password)
+
 psql --set=ON_ERROR_STOP=1 \
   --username "$POSTGRES_USER" \
   --dbname postgres \

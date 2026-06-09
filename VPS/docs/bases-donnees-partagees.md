@@ -70,6 +70,10 @@ web        -> base web, compte web
 
 L'accès au groupe Docker et aux fichiers `.env` reste un accès privilégié.
 
+Les mots de passe administrateurs et ceux utilisés par les scripts
+d'initialisation sont montés dans les conteneurs avec les secrets Docker
+Compose. Ils ne figurent plus dans `docker inspect ... Config.Env`.
+
 ## Sauvegarde
 
 `sudo vps-backup` génère :
@@ -87,12 +91,20 @@ applications concernées :
 
 ```bash
 gunzip -c postgres.sql.gz \
-  | sudo vps-compose databases exec -T postgres psql -U postgres
+  | sudo vps-compose databases exec -T postgres \
+      psql -X --set=ON_ERROR_STOP=1 -U postgres -d postgres
+
+sudo vps-compose databases exec -T postgres \
+  vacuumdb -a -z -U postgres
 
 gunzip -c mariadb.sql.gz \
   | sudo vps-compose databases exec -T mariadb sh -c \
-      'exec mariadb --user=root --password="$MARIADB_ROOT_PASSWORD"'
+      'exec mariadb --user=root --password="$(cat /run/secrets/mariadb_admin_password)"'
 ```
+
+L'option `-X` empêche le chargement d'un éventuel fichier `psqlrc`. L'analyse
+PostgreSQL après restauration recalcule les statistiques utilisées par le
+planificateur de requêtes.
 
 ## Migration d'une ancienne installation
 

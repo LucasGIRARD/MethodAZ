@@ -1,8 +1,8 @@
 #!/bin/sh
 set -eu
 
-SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-INSTALL_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
+SCRIPT_DIR=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
+INSTALL_DIR=$(CDPATH='' cd -- "$SCRIPT_DIR/.." && pwd)
 CONFIG=${1:-"$INSTALL_DIR/config/vps.env"}
 SECRETS=${2:-"$INSTALL_DIR/config/secrets.env"}
 
@@ -25,6 +25,7 @@ case "$secret_mode" in
 esac
 
 for script in \
+  "$INSTALL_DIR/scripts/fetch-vps.sh" \
   "$INSTALL_DIR/scripts/generate-secrets.sh" \
   "$INSTALL_DIR/scripts/local-compose.sh" \
   "$INSTALL_DIR/scripts/vps-install.sh" \
@@ -32,8 +33,11 @@ for script in \
   "$INSTALL_DIR/scripts/vps-image-lock" \
   "$INSTALL_DIR/scripts/vps-image-audit" \
   "$INSTALL_DIR/scripts/vps-backup" \
+  "$INSTALL_DIR/scripts/vps-backup-remote" \
   "$INSTALL_DIR/scripts/vps-health-report" \
   "$INSTALL_DIR/scripts/vps-nightly-maintenance" \
+  "$INSTALL_DIR/scripts/vps-restore-test" \
+  "$INSTALL_DIR/scripts/vps-secret-audit" \
   "$INSTALL_DIR/gateway/scripts/vps-gateway" \
   "$INSTALL_DIR/monitoring/scripts/vps-monitoring" \
   "$INSTALL_DIR/monitoring/scripts/vps-local-metrics"; do

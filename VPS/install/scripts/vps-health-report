@@ -52,6 +52,20 @@ mkdir -p "$REPORT_DIR"
   systemctl list-timers --no-pager \
     vps-nightly-maintenance.timer vps-local-metrics.timer \
     apt-daily.timer apt-daily-upgrade.timer || true
+  echo
+
+  echo "===== Derniers contrôles de sauvegarde ====="
+  for status in local-backup-success remote-backup-success restore-test-success; do
+    file="/var/lib/vps-maintenance/$status"
+    if [ -r "$file" ]; then
+      timestamp=$(cat "$file")
+      printf '%s : ' "$status"
+      date --date="@$timestamp" --iso-8601=seconds 2>/dev/null \
+        || echo "$timestamp"
+    else
+      echo "$status : jamais validé"
+    fi
+  done
 } > "$REPORT"
 
 chmod 0640 "$REPORT"

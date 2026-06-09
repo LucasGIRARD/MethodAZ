@@ -1,5 +1,13 @@
 # Installation
 
+Le bundle peut être téléchargé sans cloner le dépôt MethodAZ. Voir
+`docs/telechargement-github.md` ou les scripts :
+
+```text
+install/scripts/fetch-vps.sh
+install/scripts/fetch-vps.ps1
+```
+
 ## Fichiers locaux
 
 ```text
@@ -23,9 +31,25 @@ Valider avant toute modification du serveur :
 
 ```bash
 sh install/scripts/validate-bundle.sh
+pwsh install/scripts/validate-repository.ps1
 ```
 
+Le premier script vérifie les projets Compose et les scripts POSIX. Le second
+contrôle PowerShell, les liens Markdown, les fichiers sensibles suivis par Git
+et les références d'images mutables.
+
 ## Test local
+
+Les scripts créent automatiquement, s'ils sont absents :
+
+```text
+install/local/vps.env
+install/local/secrets.env
+install/local/work/
+```
+
+Les valeurs initiales proviennent des fichiers `.env.example` suivis dans Git.
+Les fichiers générés restent sur l'hôte et ne sont pas écrasés.
 
 Sous Windows :
 

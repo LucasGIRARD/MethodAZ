@@ -38,6 +38,16 @@ services:
       - SETGID
       - SETUID
     pids_limit: 256
+    mem_limit: ${NGINX_MEMORY_LIMIT:-128m}
+    healthcheck:
+      test:
+        - CMD
+        - nginx
+        - -t
+      interval: 30s
+      timeout: 8s
+      retries: 3
+      start_period: 10s
     security_opt:
       - no-new-privileges:true
 
@@ -56,5 +66,6 @@ services:
     cap_drop:
       - ALL
     pids_limit: 128
+    mem_limit: ${CERTBOT_MEMORY_LIMIT:-128m}
     security_opt:
       - no-new-privileges:true

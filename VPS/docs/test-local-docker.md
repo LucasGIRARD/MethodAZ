@@ -11,7 +11,31 @@ Les fichiers de travail et les données sont créés sous :
 install/local/work
 ```
 
-Ce répertoire et le fichier `install/local/secrets.env` sont exclus de Git.
+Au premier lancement, les scripts créent automatiquement sur l'hôte :
+
+```text
+install/local/vps.env       configuration locale
+install/local/secrets.env   secrets de test
+install/local/work/         fichiers Compose et données persistantes
+```
+
+Les deux fichiers `.env` sont copiés depuis :
+
+```text
+install/local/vps.env.example
+install/local/secrets.env.example
+```
+
+Ils ne sont jamais écrasés lors des exécutions suivantes et sont exclus de
+Git. Il est donc possible de modifier les ports, versions ou valeurs locales
+dans `install/local/vps.env` avant un démarrage.
+
+## Télécharger les fichiers
+
+Il n'est pas nécessaire de cloner MethodAZ. Télécharger uniquement le bundle
+`VPS` avec les scripts PowerShell ou Bash documentés dans
+[Téléchargement depuis GitHub](telechargement-github.md), puis exécuter les
+commandes suivantes depuis la racine du bundle.
 
 ## Périmètre
 
@@ -52,6 +76,11 @@ Initialiser le répertoire de travail :
 .\install\scripts\local-compose.ps1 init
 ```
 
+Cette commande écrit les fichiers `.env` locaux s'ils sont absents. Les
+actions `validate`, `pull` et `up` effectuent aussi cette initialisation
+automatiquement. L'action `init` ne nécessite pas que Docker soit déjà
+démarré.
+
 Valider tous les fichiers Compose sans démarrer de conteneur :
 
 ```powershell
@@ -88,6 +117,9 @@ sh install/scripts/local-compose.sh ps linkwarden
 sh install/scripts/local-compose.sh logs linkwarden
 sh install/scripts/local-compose.sh down linkwarden
 ```
+
+Le script applique le mode `0600` aux deux fichiers `.env` sur l'hôte Linux ou
+macOS.
 
 ## Tester tous les services
 
@@ -127,6 +159,7 @@ install/local/secrets.env
 ```
 
 Ils sont volontairement simples et ne doivent jamais être copiés sur Debian.
+Toutes les valeurs nécessaires sont fournies par défaut pour le test local.
 
 Pour l'assistant FreshRSS :
 
@@ -190,4 +223,6 @@ Supprimer les conteneurs et toutes les données locales de test :
 .\install\scripts\local-compose.ps1 clean
 ```
 
-Le nettoyage demande de saisir exactement `OUI`.
+Le nettoyage demande de saisir exactement `OUI`. Il supprime
+`install/local/work/`, mais conserve `install/local/vps.env` et
+`install/local/secrets.env` afin de préserver les réglages de l'hôte.
