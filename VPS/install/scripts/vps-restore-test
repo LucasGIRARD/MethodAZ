@@ -55,10 +55,10 @@ MARIADB_DUMP="$BACKUP_DIR/databases/mariadb.sql.gz"
 
 CONFIG="$INSTALL_ROOT/config/vps.env"
 SECRETS="$INSTALL_ROOT/config/secrets.env"
-[ -r "$CONFIG" ] && [ -r "$SECRETS" ] || {
+if [ ! -r "$CONFIG" ] || [ ! -r "$SECRETS" ]; then
   echo "Configuration canonique absente sous $INSTALL_ROOT/config." >&2
   exit 1
-}
+fi
 
 # shellcheck disable=SC1090
 . "$CONFIG"
@@ -67,10 +67,10 @@ SECRETS="$INSTALL_ROOT/config/secrets.env"
 
 postgres_id=$(vps-compose databases ps -q postgres)
 mariadb_id=$(vps-compose databases ps -q mariadb)
-[ -n "$postgres_id" ] && [ -n "$mariadb_id" ] || {
+if [ -z "$postgres_id" ] || [ -z "$mariadb_id" ]; then
   echo "Les deux moteurs de production doivent être actifs." >&2
   exit 1
-}
+fi
 
 postgres_image=$(docker inspect --format '{{.Config.Image}}' "$postgres_id")
 mariadb_image=$(docker inspect --format '{{.Config.Image}}' "$mariadb_id")

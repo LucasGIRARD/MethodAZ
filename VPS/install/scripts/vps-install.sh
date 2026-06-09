@@ -93,8 +93,9 @@ load_configuration() {
   case "${SSH_PORT:-}" in
     ''|*[!0-9]*) die "SSH_PORT doit être un nombre réel, jamais **000" ;;
   esac
-  [ "$SSH_PORT" -ge 1024 ] && [ "$SSH_PORT" -le 65535 ] \
-    || die "SSH_PORT doit être compris entre 1024 et 65535"
+  if [ "$SSH_PORT" -lt 1024 ] || [ "$SSH_PORT" -gt 65535 ]; then
+    die "SSH_PORT doit être compris entre 1024 et 65535"
+  fi
 
   : "${ADMIN_USER:?ADMIN_USER manquant}"
   : "${ADMIN_SSH_KEY_FILE:?ADMIN_SSH_KEY_FILE manquant}"
