@@ -35,7 +35,7 @@ Vérification effectuée le 7 juin 2026.
 | Image | Version retenue |
 | --- | --- |
 | Linkwarden | `v2.14.1` |
-| Davis | `4.4.0` |
+| Davis | `5.4.3` |
 | FreshRSS | `1.29.1` |
 | Tiny Tiny RSS | digest multiarchitecture relevé le 9 juin 2026 |
 | PostgreSQL | `16.14-alpine3.23` |

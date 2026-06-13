@@ -2,13 +2,12 @@ name: davis
 
 services:
   app:
-    image: ghcr.io/tchapi/davis-standalone:${DAVIS_VERSION}
+    image: ghcr.io/tchapi/davis:${DAVIS_VERSION}
     restart: unless-stopped
-    ports:
-      - "127.0.0.1:3002:9000"
     environment:
       APP_ENV: prod
       APP_SECRET: ${DAVIS_APP_SECRET}
+      APP_TIMEZONE: ${TIMEZONE}
       DATABASE_DRIVER: postgresql
       DATABASE_URL: "postgresql://davis:${DAVIS_DB_PASSWORD}@postgres:5432/davis?serverVersion=${POSTGRES_MAJOR_VERSION:-16}&charset=UTF-8"
       ADMIN_LOGIN: admin
@@ -16,27 +15,73 @@ services:
       AUTH_REALM: Davis
       TZ: ${TIMEZONE}
     volumes:
+      - davis_www:/var/www/davis
       - ./data:/data
     networks:
-      - frontend
+      - internal
       - database
     pids_limit: 256
     mem_limit: ${DAVIS_MEMORY_LIMIT:-384m}
     healthcheck:
       test:
         - CMD
-        - php
-        - -r
-        - "$$s=@fsockopen('127.0.0.1',9000,$$e,$$m,5);exit($$s?0:1);"
+        - php-fpm-healthcheck
       interval: 30s
-      timeout: 8s
+      timeout: 5s
       retries: 5
       start_period: 30s
     security_opt:
       - no-new-privileges:true
 
+  nginx:
+    image: nginx:${NGINX_ALPINE_VERSION}
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:3002:80"
+    volumes:
+      - davis_www:/var/www/davis:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - frontend
+      - internal
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - NET_BIND_SERVICE
+      - SETGID
+      - SETUID
+    pids_limit: 128
+    mem_limit: ${DAVIS_NGINX_MEMORY_LIMIT:-96m}
+    healthcheck:
+      test:
+        - CMD
+        - wget
+        - -q
+        - --spider
+        - http://127.0.0.1/
+      interval: 30s
+      timeout: 8s
+      retries: 5
+      start_period: 15s
+    security_opt:
+      - no-new-privileges:true
+
 networks:
   frontend:
+  internal:
+    internal: true
   database:
     external: true
     name: ${DATABASE_NETWORK_PREFIX:-vps-db}-davis
+
+volumes:
+  davis_www:

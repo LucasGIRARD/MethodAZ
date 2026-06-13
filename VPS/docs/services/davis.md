@@ -7,9 +7,9 @@
 - Port : `127.0.0.1:3002`
 - Domaine : `dav.example.fr`
 
-Le projet utilise uniquement l'image autonome Davis. Sa base `davis` est
-hébergée par l'instance PostgreSQL partagée. L'interface HTTP interne écoute sur
-le port `9000` du conteneur.
+Le projet utilise l'image PHP-FPM officielle Davis et un frontal Nginx dédié.
+Sa base `davis` est hébergée par l'instance PostgreSQL partagée. Nginx publie
+l'interface HTTP sur `127.0.0.1:3002`.
 
 ## Premier démarrage
 
