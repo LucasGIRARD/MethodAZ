@@ -16,6 +16,7 @@ $ConfigFile = Join-Path $LocalDir "vps.env"
 $ConfigExample = Join-Path $LocalDir "vps.env.example"
 $SecretsFile = Join-Path $LocalDir "secrets.env"
 $SecretsExample = Join-Path $LocalDir "secrets.env.example"
+$DatabasesOverride = Join-Path $LocalDir "databases.override.yml"
 
 $CoreServices = @("linkwarden", "davis", "freshrss", "ttrss", "web")
 $AllServices = @($CoreServices + "kill-newsletter")
@@ -98,7 +99,11 @@ function Invoke-Stack {
         "--env-file", $ConfigFile,
         "--env-file", $SecretsFile,
         "-f", $composeFile
-    ) + $Arguments
+    )
+    if ($Name -eq "databases") {
+        $dockerArguments += @("-f", $DatabasesOverride)
+    }
+    $dockerArguments += $Arguments
 
     & docker @dockerArguments
     if ($LASTEXITCODE -ne 0) {

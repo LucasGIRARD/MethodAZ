@@ -11,6 +11,11 @@ Les fichiers de travail et les données sont créés sous :
 install/local/work
 ```
 
+Sous Docker Desktop, PostgreSQL utilise le volume Docker nommé
+`vps-local-databases_postgres_data`. L'override
+`install/local/databases.override.yml` évite de monter le répertoire de données
+sur NTFS, dont les permissions ne satisfont pas les contrôles PostgreSQL.
+
 Au premier lancement, les scripts créent automatiquement sur l'hôte :
 
 ```text

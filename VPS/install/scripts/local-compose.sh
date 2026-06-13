@@ -9,6 +9,7 @@ CONFIG_FILE="$LOCAL_DIR/vps.env"
 CONFIG_EXAMPLE="$LOCAL_DIR/vps.env.example"
 SECRETS_FILE="$LOCAL_DIR/secrets.env"
 SECRETS_EXAMPLE="$LOCAL_DIR/secrets.env.example"
+DATABASES_OVERRIDE="$LOCAL_DIR/databases.override.yml"
 CORE_SERVICES="linkwarden davis freshrss ttrss web"
 ALL_SERVICES="$CORE_SERVICES kill-newsletter"
 MANAGED_STACKS="databases $ALL_SERVICES"
@@ -69,12 +70,22 @@ selected_services() {
 compose() {
   name=$1
   shift
-  docker compose \
-    --project-name "vps-local-$name" \
-    --env-file "$CONFIG_FILE" \
-    --env-file "$SECRETS_FILE" \
-    -f "$WORK_DIR/$name/docker-compose.yml" \
-    "$@"
+  if [ "$name" = databases ]; then
+    docker compose \
+      --project-name "vps-local-$name" \
+      --env-file "$CONFIG_FILE" \
+      --env-file "$SECRETS_FILE" \
+      -f "$WORK_DIR/$name/docker-compose.yml" \
+      -f "$DATABASES_OVERRIDE" \
+      "$@"
+  else
+    docker compose \
+      --project-name "vps-local-$name" \
+      --env-file "$CONFIG_FILE" \
+      --env-file "$SECRETS_FILE" \
+      -f "$WORK_DIR/$name/docker-compose.yml" \
+      "$@"
+  fi
 }
 
 validate_all() {
