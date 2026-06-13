@@ -1,0 +1,7 @@
+title = "MethodAZ Gitleaks config"
+
+[allowlist]
+description = "Ignore Obsidian workspace files"
+paths = [
+  '''(^|/)\.obsidian/''',
+]

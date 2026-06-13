@@ -59,4 +59,4 @@ jobs:
           tar -xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks
 
       - name: Détecter les secrets accidentels
-        run: /tmp/gitleaks git --redact --no-banner --log-opts='-- . ":(exclude).obsidian/**"' .
+        run: /tmp/gitleaks git --redact --no-banner .
