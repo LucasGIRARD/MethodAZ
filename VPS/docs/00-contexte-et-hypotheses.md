@@ -22,7 +22,7 @@ Conteneur Nginx avec le réseau de l'hôte
   |
   +-- 127.0.0.1:3001..3006 --> Conteneurs Docker dans /opt/selfhosted
                               |
-                              +--> MariaDB ou PostgreSQL partagée
+                              +--> PostgreSQL partagé
                                    via un réseau interne propre
 ```
 

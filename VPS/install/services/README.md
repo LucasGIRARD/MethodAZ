@@ -3,10 +3,8 @@
 Chaque sous-répertoire correspond à un projet Docker Compose indépendant.
 L'installateur copie uniquement les services listés dans `SERVICES`.
 
-Les bases sont fournies par le projet partagé `install/databases` :
-
-- MariaDB pour Davis, FreshRSS et l'hébergement web ;
-- PostgreSQL pour Linkwarden et Tiny Tiny RSS.
+Les cinq bases applicatives sont fournies par l'instance PostgreSQL du projet
+partagé `install/databases`.
 
 Les fichiers `.env` réels sont générés depuis :
 

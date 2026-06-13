@@ -315,7 +315,6 @@ Internet.
 | `2483` | TCP | Oracle Database | Connexion Oracle sans TLS |
 | `2484` | TCP | Oracle Database TLS | Connexion Oracle sur TLS |
 | `3050` | TCP | Firebird | Base de données |
-| `3306` | TCP | MySQL / MariaDB | Base de données |
 | `5432` | TCP | PostgreSQL | Base de données |
 | `6379` | TCP | Redis | Cache et base clé-valeur |
 | `7199` | TCP | Cassandra JMX | Administration et supervision |
@@ -476,7 +475,7 @@ connexion root.
 | `127.0.0.1:3005` | Kill the Newsletter | Local uniquement |
 | `127.0.0.1:3006` | Apache/PHP | Local uniquement |
 
-Les ports internes `3306`, `5432`, `8000` et `9000` restent dans les réseaux
+Les ports internes `5432`, `8000` et `9000` restent dans les réseaux
 Docker et ne sont pas publiés sur l'hôte.
 
 ## Vérification

@@ -53,8 +53,6 @@ sudo vps-compose freshrss logs --tail=100
 
 ```bash
 sudo vps-compose databases ps
-sudo vps-compose databases exec mariadb \
-  mariadb --user=root --password
 sudo vps-compose databases exec postgres \
   psql --username postgres
 ```

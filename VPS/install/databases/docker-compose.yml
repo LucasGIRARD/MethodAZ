@@ -1,48 +1,6 @@
 name: databases
 
 services:
-  mariadb:
-    image: mariadb:${MARIADB_VERSION}
-    restart: unless-stopped
-    command:
-      - --max-connections=80
-      - --innodb-buffer-pool-size=192M
-      - --performance-schema=OFF
-    environment:
-      MARIADB_ROOT_PASSWORD_FILE: /run/secrets/mariadb_admin_password
-    secrets:
-      - mariadb_admin_password
-      - davis_db_password
-      - freshrss_db_password
-      - web_db_password
-    volumes:
-      - ./mariadb:/var/lib/mysql
-      - ./init-mariadb.sh:/docker-entrypoint-initdb.d/10-applications.sh:ro
-      - ./init-mariadb.sh:/usr/local/sbin/reconcile-applications:ro
-    networks:
-      davis:
-        aliases:
-          - mariadb
-      freshrss:
-        aliases:
-          - mariadb
-      web:
-        aliases:
-          - mariadb
-    healthcheck:
-      test:
-        - CMD
-        - healthcheck.sh
-        - --connect
-        - --innodb_initialized
-      interval: 10s
-      timeout: 5s
-      retries: 15
-    pids_limit: 256
-    mem_limit: ${MARIADB_MEMORY_LIMIT:-512m}
-    security_opt:
-      - no-new-privileges:true
-
   postgres:
     image: postgres:${POSTGRES_VERSION}
     restart: unless-stopped
@@ -62,7 +20,10 @@ services:
     secrets:
       - postgres_admin_password
       - linkwarden_db_password
+      - davis_db_password
+      - freshrss_db_password
       - ttrss_db_password
+      - web_db_password
     volumes:
       - ./postgres:/var/lib/postgresql/data
       - ./init-postgres.sh:/docker-entrypoint-initdb.d/10-applications.sh:ro
@@ -71,7 +32,16 @@ services:
       linkwarden:
         aliases:
           - postgres
+      davis:
+        aliases:
+          - postgres
+      freshrss:
+        aliases:
+          - postgres
       ttrss:
+        aliases:
+          - postgres
+      web:
         aliases:
           - postgres
     healthcheck:
@@ -104,8 +74,6 @@ networks:
     internal: true
 
 secrets:
-  mariadb_admin_password:
-    environment: MARIADB_ADMIN_PASSWORD
   postgres_admin_password:
     environment: POSTGRES_ADMIN_PASSWORD
   linkwarden_db_password:

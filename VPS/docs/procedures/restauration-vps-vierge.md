@@ -46,7 +46,6 @@ Identifier le répertoire daté contenant :
 configuration-installateur.tar.gz
 configurations-et-donnees.tar.gz
 databases/postgres.sql.gz
-databases/mariadb.sql.gz
 grafana-data.tar.gz
 manifest.txt
 ```
@@ -89,8 +88,8 @@ sudo tar -xzf configurations-et-donnees.tar.gz -C /opt/selfhosted
 ```
 
 L'extraction root conserve les propriétaires numériques enregistrés. Ne pas
-appliquer un `chown` récursif global et ne pas restaurer de copie brute des
-répertoires PostgreSQL ou MariaDB.
+appliquer un `chown` récursif global et ne pas restaurer de copie brute du
+répertoire PostgreSQL.
 
 ## Restaurer les bases
 
@@ -101,10 +100,6 @@ gunzip -c databases/postgres.sql.gz \
 
 sudo vps-compose databases exec -T postgres \
   vacuumdb -a -z -U postgres
-
-gunzip -c databases/mariadb.sql.gz \
-  | sudo vps-compose databases exec -T mariadb sh -c \
-      'exec mariadb --user=root --password="$(cat /run/secrets/mariadb_admin_password)"'
 ```
 
 ## Restaurer Grafana

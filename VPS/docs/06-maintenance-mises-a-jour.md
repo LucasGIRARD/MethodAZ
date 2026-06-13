@@ -9,7 +9,7 @@ puis vérifier l'état du serveur.
 
 L'installateur déploie `/usr/local/sbin/vps-backup`. Il produit :
 
-- un dump logique de l'instance PostgreSQL et de l'instance MariaDB ;
+- un dump logique de l'instance PostgreSQL partagée ;
 - une archive des configurations et données applicatives, sans recopier les
   fichiers bruts des bases actives ;
 - une archive de la configuration canonique de l'installateur, secrets
@@ -39,10 +39,9 @@ Le premier jour de chaque mois, la maintenance lance :
 sudo vps-restore-test
 ```
 
-Le script démarre des conteneurs PostgreSQL et MariaDB temporaires, sans
-réseau, restaure les deux dumps, vérifie les cinq bases attendues, exécute
-`vacuumdb -a -z` sur PostgreSQL, puis détruit les conteneurs et volumes de
-test. Le résultat est écrit dans :
+Le script démarre un conteneur PostgreSQL temporaire, sans réseau, restaure le
+dump, vérifie les cinq bases attendues, exécute `vacuumdb -a -z`, puis détruit
+le conteneur et son volume. Le résultat est écrit dans :
 
 ```text
 /var/log/server-checks/restore-test.txt
@@ -164,7 +163,7 @@ Le fuseau du serveur est configuré avec la valeur `TIMEZONE`, par défaut
 | --- | --- |
 | `02:15` à `02:25` | Démarrage aléatoire de la sauvegarde, renouvellement Certbot et rapports |
 | Après la sauvegarde | Copie Restic si elle est activée |
-| Le premier jour du mois | Test isolé de restauration des deux moteurs SQL |
+| Le premier jour du mois | Test isolé de restauration PostgreSQL |
 | Après la sauvegarde, le dimanche | Audit Docker Scout |
 | Le dimanche | Nettoyage et contrôle du dépôt Restic |
 | `04:15` à `04:25` | Mise à jour des listes APT |

@@ -50,16 +50,14 @@ trap cleanup EXIT HUP INT TERM
 mkdir -p "$staging/databases"
 
 if [ -f "$STACK_ROOT/databases/docker-compose.yml" ]; then
-  for engine in mariadb postgres; do
-    if ! vps-compose databases ps --status running --services 2>/dev/null \
-      | grep -qx "$engine"; then
-      if find "$STACK_ROOT/databases/$engine" -mindepth 1 -print -quit \
-        2>/dev/null | grep -q .; then
-        echo "Le moteur $engine est arrêté alors que des données existent." >&2
-        exit 1
-      fi
+  if ! vps-compose databases ps --status running --services 2>/dev/null \
+    | grep -qx postgres; then
+    if find "$STACK_ROOT/databases/postgres" -mindepth 1 -print -quit \
+      2>/dev/null | grep -q .; then
+      echo "PostgreSQL est arrêté alors que des données existent." >&2
+      exit 1
     fi
-  done
+  fi
 
   if vps-compose databases ps --status running --services 2>/dev/null \
     | grep -qx postgres; then
@@ -68,16 +66,6 @@ if [ -f "$STACK_ROOT/databases/docker-compose.yml" ]; then
       pg_dumpall --clean --if-exists --username postgres \
       > "$staging/databases/postgres.sql"
     gzip -1 "$staging/databases/postgres.sql"
-  fi
-
-  if vps-compose databases ps --status running --services 2>/dev/null \
-    | grep -qx mariadb; then
-    echo "Dump de l'instance MariaDB partagée"
-    # shellcheck disable=SC2016
-    vps-compose databases exec -T mariadb sh -c \
-      'exec mariadb-dump --all-databases --single-transaction --quick --routines --events --user=root --password="$(cat /run/secrets/mariadb_admin_password)"' \
-      > "$staging/databases/mariadb.sql"
-    gzip -1 "$staging/databases/mariadb.sql"
   fi
 fi
 

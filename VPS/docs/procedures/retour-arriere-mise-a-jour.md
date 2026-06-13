@@ -36,12 +36,15 @@ Ne pas régénérer le verrou pendant le retour arrière.
 
 ## Régression après migration SQL
 
-Arrêter toutes les applications utilisant le moteur concerné. Pour
-PostgreSQL :
+Arrêter toutes les applications SQL avant de restaurer l'instance PostgreSQL
+partagée :
 
 ```bash
 sudo vps-compose linkwarden down
+sudo vps-compose davis down
+sudo vps-compose freshrss down
 sudo vps-compose ttrss down
+sudo vps-compose web down
 
 gunzip -c databases/postgres.sql.gz \
   | sudo vps-compose databases exec -T postgres \
@@ -49,18 +52,6 @@ gunzip -c databases/postgres.sql.gz \
 
 sudo vps-compose databases exec -T postgres \
   vacuumdb -a -z -U postgres
-```
-
-Pour MariaDB :
-
-```bash
-sudo vps-compose davis down
-sudo vps-compose freshrss down
-sudo vps-compose web down
-
-gunzip -c databases/mariadb.sql.gz \
-  | sudo vps-compose databases exec -T mariadb sh -c \
-      'exec mariadb --user=root --password="$(cat /run/secrets/mariadb_admin_password)"'
 ```
 
 Remettre ensuite les anciens projets et redémarrer les applications.

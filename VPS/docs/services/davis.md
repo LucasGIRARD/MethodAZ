@@ -8,7 +8,7 @@
 - Domaine : `dav.example.fr`
 
 Le projet utilise uniquement l'image autonome Davis. Sa base `davis` est
-hébergée par l'instance MariaDB partagée. L'interface HTTP interne écoute sur
+hébergée par l'instance PostgreSQL partagée. L'interface HTTP interne écoute sur
 le port `9000` du conteneur.
 
 ## Premier démarrage
@@ -40,5 +40,5 @@ DAV       : https://dav.example.fr/dav
 
 ```text
 /opt/selfhosted/davis/data
-/opt/selfhosted/databases/mariadb
+/opt/selfhosted/databases/postgres
 ```

@@ -106,7 +106,6 @@ load_configuration() {
 apply_resource_profile() {
   case "${RESOURCE_PROFILE:-VPS_4G}" in
     VPS_2G)
-      : "${MARIADB_MEMORY_LIMIT:=320m}"
       : "${POSTGRES_MEMORY_LIMIT:=320m}"
       : "${LINKWARDEN_MEMORY_LIMIT:=384m}"
       : "${DAVIS_MEMORY_LIMIT:=192m}"
@@ -127,7 +126,6 @@ apply_resource_profile() {
       : "${ALLOY_MEMORY_LIMIT:=192m}"
       ;;
     VPS_4G)
-      : "${MARIADB_MEMORY_LIMIT:=512m}"
       : "${POSTGRES_MEMORY_LIMIT:=512m}"
       : "${LINKWARDEN_MEMORY_LIMIT:=768m}"
       : "${DAVIS_MEMORY_LIMIT:=384m}"
@@ -552,8 +550,13 @@ install_databases() {
   [ "${INSTALL_DATABASES:-true}" = true ] || return 0
   log "Bases de données partagées"
 
+  legacy_mariadb=/opt/selfhosted/databases/mariadb
+  if find "$legacy_mariadb" -mindepth 1 -print -quit 2>/dev/null \
+    | grep -q .; then
+    die "données MariaDB détectées dans $legacy_mariadb ; migrer les bases vers PostgreSQL puis déplacer ce répertoire avant de rejouer cette phase"
+  fi
+
   : "${POSTGRES_ADMIN_PASSWORD:?POSTGRES_ADMIN_PASSWORD manquant}"
-  : "${MARIADB_ADMIN_PASSWORD:?MARIADB_ADMIN_PASSWORD manquant}"
   : "${LINKWARDEN_DB_PASSWORD:?LINKWARDEN_DB_PASSWORD manquant}"
   : "${DAVIS_DB_PASSWORD:?DAVIS_DB_PASSWORD manquant}"
   : "${FRESHRSS_DB_PASSWORD:?FRESHRSS_DB_PASSWORD manquant}"
@@ -561,9 +564,8 @@ install_databases() {
   : "${WEB_DB_PASSWORD:?WEB_DB_PASSWORD manquant}"
 
   copy_stack databases "$INSTALL_DIR/databases"
-  chmod 0555 \
-    /opt/selfhosted/databases/init-mariadb.sh \
-    /opt/selfhosted/databases/init-postgres.sh
+  rm -f /opt/selfhosted/databases/init-mariadb.sh
+  chmod 0555 /opt/selfhosted/databases/init-postgres.sh
 
   umask 077
   cat > /opt/selfhosted/databases/.env <<EOF
@@ -571,9 +573,6 @@ DATABASE_NETWORK_PREFIX=${DATABASE_NETWORK_PREFIX:-vps-db}
 POSTGRES_VERSION=$POSTGRES_VERSION
 POSTGRES_ADMIN_PASSWORD=$POSTGRES_ADMIN_PASSWORD
 POSTGRES_MEMORY_LIMIT=$POSTGRES_MEMORY_LIMIT
-MARIADB_VERSION=$MARIADB_VERSION
-MARIADB_ADMIN_PASSWORD=$MARIADB_ADMIN_PASSWORD
-MARIADB_MEMORY_LIMIT=$MARIADB_MEMORY_LIMIT
 LINKWARDEN_DB_PASSWORD=$LINKWARDEN_DB_PASSWORD
 DAVIS_DB_PASSWORD=$DAVIS_DB_PASSWORD
 FRESHRSS_DB_PASSWORD=$FRESHRSS_DB_PASSWORD
@@ -583,9 +582,7 @@ EOF
   chmod 0600 /opt/selfhosted/databases/.env
 
   /usr/local/sbin/vps-image-lock databases
-  /usr/local/sbin/vps-compose databases up -d --wait
-  /usr/local/sbin/vps-compose databases exec -T mariadb \
-    sh /usr/local/sbin/reconcile-applications
+  /usr/local/sbin/vps-compose databases up -d --wait --remove-orphans
   /usr/local/sbin/vps-compose databases exec -T postgres \
     sh /usr/local/sbin/reconcile-applications
 }
@@ -612,7 +609,7 @@ EOF
     davis)
       cat > "$target" <<EOF
 DAVIS_VERSION=$DAVIS_VERSION
-MARIADB_SERVER_VERSION=${MARIADB_SERVER_VERSION:-11.8.8-MariaDB}
+POSTGRES_MAJOR_VERSION=${POSTGRES_MAJOR_VERSION:-16}
 DATABASE_NETWORK_PREFIX=${DATABASE_NETWORK_PREFIX:-vps-db}
 DAVIS_DOMAIN=$DAVIS_DOMAIN
 TIMEZONE=$TIMEZONE

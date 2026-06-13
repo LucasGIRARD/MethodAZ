@@ -5,7 +5,7 @@
 - Un projet Compose indépendant par application.
 - Aucun `container_name`, afin de conserver la gestion native de Compose.
 - Ports HTTP publiés uniquement sur `127.0.0.1`.
-- Deux moteurs SQL partagés, sans port publié.
+- Une instance PostgreSQL partagée, sans port publié.
 - Un réseau SQL interne distinct par application.
 - Un utilisateur et une base distincts par application.
 - Versions d'images définies dans `.env`.
@@ -51,7 +51,7 @@ Sauvegarder ensemble :
 - le fichier Compose ;
 - le `.env` secret par un canal chiffré ;
 - les répertoires de données ;
-- les dumps cohérents MariaDB et PostgreSQL produits par `vps-backup`.
+- le dump cohérent PostgreSQL produit par `vps-backup`.
 
 Une copie brute d'une base active n'est pas automatiquement une sauvegarde
 cohérente.
@@ -61,7 +61,6 @@ cohérente.
 | Composant | Secret monté sous `/run/secrets` | Limite |
 | --- | --- | --- |
 | PostgreSQL officiel | Mot de passe administrateur | Support natif `POSTGRES_PASSWORD_FILE` |
-| MariaDB officielle | Mot de passe administrateur | Support natif `MARIADB_ROOT_PASSWORD_FILE` |
 | Scripts d'initialisation SQL | Mots de passe des cinq bases | Lecture explicite des fichiers montés |
 | Hébergement PHP | Mot de passe de la base web | L'application doit lire `DB_PASSWORD_FILE` |
 | Linkwarden | Non | `DATABASE_URL` et `NEXTAUTH_SECRET` attendus en variables |
@@ -73,8 +72,7 @@ fragile et replacerait de toute façon le secret dans l'environnement du
 processus. Les fichiers `.env` root en mode `0600` restent donc la solution
 retenue pour les interfaces non compatibles.
 
-La vérification hebdomadaire suivante couvre PostgreSQL, MariaDB et
-l'hébergement PHP :
+La vérification hebdomadaire suivante couvre PostgreSQL et l'hébergement PHP :
 
 ```bash
 sudo vps-secret-audit

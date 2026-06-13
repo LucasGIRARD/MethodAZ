@@ -46,9 +46,6 @@ function Initialize-Local {
     if (-not (Select-String -LiteralPath $SecretsFile -Pattern "^POSTGRES_ADMIN_PASSWORD=" -Quiet)) {
         Add-Content -LiteralPath $SecretsFile -Encoding utf8 -Value "POSTGRES_ADMIN_PASSWORD=local_postgres_admin"
     }
-    if (-not (Select-String -LiteralPath $SecretsFile -Pattern "^MARIADB_ADMIN_PASSWORD=" -Quiet)) {
-        Add-Content -LiteralPath $SecretsFile -Encoding utf8 -Value "MARIADB_ADMIN_PASSWORD=local_mariadb_admin"
-    }
 
     if ($IsLinux -or $IsMacOS) {
         & chmod 600 $ConfigFile $SecretsFile 2>$null

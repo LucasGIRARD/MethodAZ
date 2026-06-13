@@ -23,7 +23,6 @@ La sélection complète contient :
 
 - cinq applications ;
 - une instance PostgreSQL partagée ;
-- une instance MariaDB partagée ;
 - Nginx et Certbot ;
 - Grafana, Prometheus et Node Exporter ;
 - Debian, Docker, SSH et Fail2ban.

@@ -6,7 +6,7 @@ Déployer chaque application comme un projet Docker Compose indépendant sous
 `/opt/selfhosted`. Ce document est le récapitulatif ; les paramètres propres à
 chaque application sont dans `docs/services/`.
 
-Les moteurs SQL sont mutualisés dans le projet `databases`, décrit dans
+L'instance PostgreSQL est mutualisée dans le projet `databases`, décrit dans
 [Bases de données partagées](bases-donnees-partagees.md).
 
 ## Vue d'ensemble
@@ -14,11 +14,11 @@ Les moteurs SQL sont mutualisés dans le projet `databases`, décrit dans
 | Service | Port local | Base | Projet Compose | Documentation |
 | --- | ---: | --- | --- | --- |
 | Linkwarden | `127.0.0.1:3001` | PostgreSQL | `install/services/linkwarden` | [Linkwarden](services/linkwarden.md) |
-| Davis | `127.0.0.1:3002` | MariaDB | `install/services/davis` | [Davis](services/davis.md) |
-| FreshRSS | `127.0.0.1:3003` | MariaDB | `install/services/freshrss` | [FreshRSS](services/freshrss.md) |
+| Davis | `127.0.0.1:3002` | PostgreSQL | `install/services/davis` | [Davis](services/davis.md) |
+| FreshRSS | `127.0.0.1:3003` | PostgreSQL | `install/services/freshrss` | [FreshRSS](services/freshrss.md) |
 | Tiny Tiny RSS | `127.0.0.1:3004` | PostgreSQL | `install/services/ttrss` | [Tiny Tiny RSS](services/ttrss.md) |
 | Kill the Newsletter | `127.0.0.1:3005` | Interne | `install/services/kill-newsletter` | [Kill the Newsletter](services/kill-newsletter.md) |
-| Apache/PHP | `127.0.0.1:3006` | MariaDB | `install/services/web` | [Hébergement web](services/web.md) |
+| Apache/PHP | `127.0.0.1:3006` | PostgreSQL | `install/services/web` | [Hébergement web](services/web.md) |
 
 Tous les projets suivent les
 [conventions Docker communes](services/00-conventions.md).
@@ -38,7 +38,7 @@ install/services/                  Modèles suivis dans Git
   ttrss/docker-compose.yml
   kill-newsletter/docker-compose.yml
   web/docker-compose.yml
-install/databases/                 MariaDB et PostgreSQL partagées
+install/databases/                 PostgreSQL partagé
 
 /opt/selfhosted/                   Installation réelle
   databases/

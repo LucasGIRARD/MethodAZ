@@ -37,8 +37,8 @@ Lire et appliquer les documents dans cet ordre :
 - Proxy inverse public : Nginx conteneurisé avec le réseau de l'hôte.
 - Certificats TLS : Certbot conteneurisé en mode `webroot`.
 - Répertoire applicatif : `/opt/selfhosted`.
-- Bases SQL : une MariaDB officielle partagée par trois applications et une
-  PostgreSQL officielle partagée par deux applications, sans port publié.
+- Bases SQL : une instance PostgreSQL officielle partagée par les cinq
+  applications SQL, sans port publié.
 - Ports applicatifs Docker : publiés seulement sur `127.0.0.1`.
 - Port SSH personnalisé : valeur réelle secrète, représentée publiquement par `**000`.
 - SFTP : compte séparé, sans shell, chrooté et authentifié par clé sur le port
@@ -117,7 +117,7 @@ dav.example.fr         Davis / CalDAV / CardDAV / WebDAV
 newsletter.example.fr  Kill the Newsletter
 freshrss.example.fr    FreshRSS
 ttrss.example.fr       Tiny Tiny RSS
-web.example.fr         Hébergement PHP/MySQL/HTML
+web.example.fr         Hébergement PHP/PostgreSQL/HTML
 ```
 
 ## Archives

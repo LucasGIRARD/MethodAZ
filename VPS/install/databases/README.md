@@ -1,9 +1,7 @@
 # Bases de données partagées
 
-Ce projet exécute uniquement deux images officielles :
-
-- MariaDB pour Davis, FreshRSS et l'hébergement web ;
-- PostgreSQL pour Linkwarden et Tiny Tiny RSS.
+Ce projet exécute une seule image officielle PostgreSQL pour Linkwarden,
+Davis, FreshRSS, Tiny Tiny RSS et l'hébergement web.
 
 Aucun port SQL n'est publié sur l'hôte. Chaque application utilise son propre
 réseau Docker interne `vps-db-*` et dispose de sa base, de son utilisateur et

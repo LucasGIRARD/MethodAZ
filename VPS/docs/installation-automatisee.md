@@ -10,7 +10,7 @@ L'installateur Bash prépare :
 - SSH avec conservation temporaire du port 22 ;
 - `iptables`, la persistance et Fail2ban ;
 - Docker et son endpoint Prometheus local ;
-- une MariaDB et une PostgreSQL partagées ;
+- une instance PostgreSQL partagée ;
 - les projets Compose applicatifs sélectionnés ;
 - la supervision Grafana et Prometheus, avec cAdvisor et les journaux
   facultatifs.
@@ -144,7 +144,7 @@ d'amorçage restée sous `/root/vps-setup/install/config/secrets.env`. Conserver
 | SSH | `sudo vps-install --phase ssh` | SSH renforcé et compte SFTP |
 | Pare-feu | `sudo vps-install --phase firewall` | iptables et Fail2ban |
 | Docker | `sudo vps-install --phase docker` | Dépôt officiel et démon |
-| Bases | `sudo vps-install --phase databases` | MariaDB, PostgreSQL et réseaux isolés |
+| Bases | `sudo vps-install --phase databases` | PostgreSQL et réseaux isolés |
 | Services | `sudo vps-install --phase services` | Copie des projets sélectionnés |
 | Gateway | `sudo vps-install --phase gateway` | Nginx HTTP et préparation Certbot |
 | Supervision | `sudo vps-install --phase monitoring` | Dashboard et collecteurs |

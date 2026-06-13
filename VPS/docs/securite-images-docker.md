@@ -19,7 +19,7 @@ risque devient significatif.
 | Élevé | L'ancienne procédure exécutait `aquasec/trivy:latest` avec le socket Docker | Procédure retirée ; audit avec le binaire hôte Docker Scout |
 | Moyen | Les secrets passés par variables sont visibles par root via `docker inspect` | Fichiers `.env` en mode `0600`, accès Docker limité aux administrateurs |
 | Moyen | Un digest garantit l'immuabilité, pas l'identité de l'éditeur | Utiliser uniquement les registres officiels et contrôler les avis de publication |
-| Moyen | La mutualisation SQL augmente l'impact d'une panne moteur | Deux moteurs seulement, comptes séparés, réseaux Docker distincts et dumps nocturnes |
+| Moyen | La mutualisation SQL augmente l'impact d'une panne moteur | Comptes séparés, réseaux Docker distincts et dump nocturne |
 | Moyen | Node Exporter lit la racine et utilise le PID de l'hôte | Port local, racine en lecture seule, capacités supprimées |
 | Moyen | Alloy lit journald et les journaux Nginx | Désactivable avec `ENABLE_LOGS=false`, montages en lecture seule |
 | Faible | Un emballement de processus peut épuiser le VPS | `pids_limit` et `mem_limit` appliqués aux conteneurs |
@@ -39,8 +39,7 @@ Vérification effectuée le 7 juin 2026.
 | FreshRSS | `1.29.1` |
 | Tiny Tiny RSS | digest multiarchitecture relevé le 9 juin 2026 |
 | PostgreSQL | `16.14-alpine3.23` |
-| MariaDB | `11.8.8-noble` |
-| PHP Apache | base officielle `8.4.21-apache-trixie`, extensions MySQL et OPcache construites localement |
+| PHP Apache | base officielle `8.4.21-apache-trixie`, extensions PostgreSQL et OPcache construites localement |
 | Nginx | `1.30.2-alpine-slim` |
 | Grafana | `13.0.1-security-01` |
 | Prometheus | `v3.12.0-distroless` |
@@ -126,6 +125,5 @@ L'analyse ne prouve pas qu'une image est saine. Elle doit être complétée par 
 - [Alloy : versions](https://github.com/grafana/alloy/releases)
 - [PostgreSQL : politique de versions](https://www.postgresql.org/support/versioning/)
 - [Images officielles PostgreSQL](https://hub.docker.com/_/postgres)
-- [Images officielles MariaDB](https://hub.docker.com/_/mariadb)
 - [Images officielles PHP](https://hub.docker.com/_/php)
 - [Images officielles Nginx](https://hub.docker.com/_/nginx)

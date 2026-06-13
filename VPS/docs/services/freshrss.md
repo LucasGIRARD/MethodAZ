@@ -21,8 +21,9 @@ curl -fsSI http://127.0.0.1:3003
 Dans l'assistant web, utiliser :
 
 ```text
-Type     : MySQL / MariaDB
-Hôte     : mariadb
+Type     : PostgreSQL
+Hôte     : postgres
+Port     : 5432
 Base     : freshrss
 Compte   : freshrss
 Mot passe: valeur FRESHRSS_DB_PASSWORD du fichier de secrets
@@ -35,5 +36,5 @@ Ne pas afficher le fichier de secrets dans une capture ou un journal.
 ```text
 /opt/selfhosted/freshrss/data
 /opt/selfhosted/freshrss/extensions
-/opt/selfhosted/databases/mariadb
+/opt/selfhosted/databases/postgres
 ```

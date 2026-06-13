@@ -48,7 +48,7 @@ commandes suivantes depuis la racine du bundle.
 
 | Projet | Validation Compose | Exécution locale |
 | --- | --- | --- |
-| MariaDB et PostgreSQL partagées | Oui | Oui, sans port publié |
+| PostgreSQL partagé | Oui | Oui, sans port publié |
 | Linkwarden | Oui | Oui, port `3001` |
 | Davis | Oui | Oui, port `3002` |
 | FreshRSS | Oui | Oui, port `3003` |
@@ -171,7 +171,9 @@ Toutes les valeurs nécessaires sont fournies par défaut pour le test local.
 Pour l'assistant FreshRSS :
 
 ```text
-Hôte       mariadb
+Type       PostgreSQL
+Hôte       postgres
+Port       5432
 Base       freshrss
 Utilisateur freshrss
 Mot de passe local_freshrss_db

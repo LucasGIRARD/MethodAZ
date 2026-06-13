@@ -43,10 +43,10 @@ Les messages rejoignent journald par le pilote Docker et suivent sa rétention.
 
 ```text
 /opt/selfhosted/web/html
-/opt/selfhosted/databases/mariadb
+/opt/selfhosted/databases/postgres
 ```
 
-Les variables `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER` et
+Les variables `DB_DRIVER`, `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER` et
 `DB_PASSWORD_FILE` sont fournies au conteneur PHP. Le mot de passe est monté
 dans `/run/secrets/web_db_password`.
 
@@ -59,6 +59,6 @@ $password = trim(file_get_contents(getenv('DB_PASSWORD_FILE')));
 L'application ne doit pas recopier cette valeur dans son code source ni dans
 ses journaux.
 
-L'image ajoute uniquement `mysqli`, `pdo_mysql` et OPcache à la base PHP
+L'image ajoute uniquement `pgsql`, `pdo_pgsql` et OPcache à la base PHP
 officielle. Le digest de cette base est inscrit dans
 `docker-compose.lock.yml` par `vps-image-lock web`.

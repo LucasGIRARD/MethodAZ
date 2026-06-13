@@ -31,9 +31,6 @@ initialize_local() {
   grep -q '^POSTGRES_ADMIN_PASSWORD=' "$SECRETS_FILE" \
     || printf '%s\n' 'POSTGRES_ADMIN_PASSWORD=local_postgres_admin' \
       >> "$SECRETS_FILE"
-  grep -q '^MARIADB_ADMIN_PASSWORD=' "$SECRETS_FILE" \
-    || printf '%s\n' 'MARIADB_ADMIN_PASSWORD=local_mariadb_admin' \
-      >> "$SECRETS_FILE"
 
   for name in $MANAGED_STACKS; do
     if [ "$name" = databases ]; then

@@ -130,7 +130,6 @@ Exemple :
 /opt/selfhosted/
   databases/
     docker-compose.yml
-    mariadb/
     postgres/
   linkwarden/
     docker-compose.yml
@@ -160,7 +159,7 @@ networks:
 ```
 
 Le projet `databases` crée ces réseaux avec `internal: true`. Aucun port
-MariaDB ou PostgreSQL n'est publié.
+PostgreSQL n'est publié.
 
 ## Vérification
 
