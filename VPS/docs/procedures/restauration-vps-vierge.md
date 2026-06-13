@@ -8,26 +8,37 @@ les données applicatives, Grafana, Nginx et les certificats. Elle nécessite :
 - un VPS Debian 13 vierge ;
 - la clé privée SSH administrateur conservée sur le poste client ;
 - une sauvegarde produite par `vps-backup` ;
-- le mot de passe et les identifiants Restic conservés hors du VPS si la
-  sauvegarde externe est utilisée.
+- le mot de passe Restic et la configuration rclone conservés hors du VPS si
+  la sauvegarde externe Koofr est utilisée.
 
 Ne pas supprimer l'ancien serveur avant validation fonctionnelle du nouveau.
 
 ## Récupérer la sauvegarde
 
-Avec Restic :
+Avec Restic et Koofr :
 
 ```bash
+sudo apt update
+sudo apt install -y restic rclone
 sudo install -d -m 0700 /etc/vps-backup /root/restauration
-sudo install -m 0600 restic-repository restic-password restic.env \
+sudo install -m 0600 \
+  restic-repository restic-password restic.env rclone.conf \
   /etc/vps-backup/
-sudo RESTIC_REPOSITORY_FILE=/etc/vps-backup/restic-repository \
-  RESTIC_PASSWORD_FILE=/etc/vps-backup/restic-password \
-  sh -c '. /etc/vps-backup/restic.env; export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_DEFAULT_REGION; restic snapshots'
-sudo RESTIC_REPOSITORY_FILE=/etc/vps-backup/restic-repository \
-  RESTIC_PASSWORD_FILE=/etc/vps-backup/restic-password \
-  sh -c '. /etc/vps-backup/restic.env; export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_DEFAULT_REGION; restic restore latest --target /root/restauration'
+sudo sh -c '
+  set -a
+  . /etc/vps-backup/restic.env
+  set +a
+  export RESTIC_REPOSITORY_FILE=/etc/vps-backup/restic-repository
+  export RESTIC_PASSWORD_FILE=/etc/vps-backup/restic-password
+  restic snapshots
+  restic restore latest --target /root/restauration
+'
 ```
+
+Si `rclone.conf` n'a pas été conservé, recréer le remote `koofr` avec un
+nouveau mot de passe d'application avant d'exécuter Restic. Pour un ancien
+dépôt S3, restaurer les variables AWS dans `restic.env` ; les mêmes commandes
+Restic restent valables.
 
 Identifier le répertoire daté contenant :
 

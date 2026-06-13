@@ -156,8 +156,9 @@ Les phases sont conçues pour être rejouées. Les données applicatives sous
 La phase Docker installe également la sauvegarde et le timer de maintenance
 nocturne. La phase Base borne les timers APT entre `04:15` et `05:00`.
 `RESOURCE_PROFILE` applique les limites mémoire `VPS_2G` ou `VPS_4G`.
-`ENABLE_REMOTE_BACKUP=true` ajoute Restic ; ses identifiants restent dans
-`/etc/vps-backup`, jamais dans le dépôt.
+`ENABLE_REMOTE_BACKUP=true` ajoute Restic et rclone. Koofr via rclone est le
+backend recommandé ; les identifiants restent dans `/etc/vps-backup`, jamais
+dans le dépôt.
 
 ## Tester SSH et SFTP
 

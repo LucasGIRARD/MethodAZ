@@ -189,7 +189,7 @@ install_base() {
     unattended-upgrades
   case "${ENABLE_REMOTE_BACKUP:-false}" in
     true|TRUE|1|yes|YES)
-      DEBIAN_FRONTEND=noninteractive apt-get install -y restic
+      DEBIAN_FRONTEND=noninteractive apt-get install -y restic rclone
       ;;
   esac
 
@@ -433,8 +433,9 @@ install_docker() {
 
   case "${ENABLE_REMOTE_BACKUP:-false}" in
     true|TRUE|1|yes|YES)
-      if ! command -v restic >/dev/null 2>&1; then
-        DEBIAN_FRONTEND=noninteractive apt-get install -y restic
+      if ! command -v restic >/dev/null 2>&1 \
+        || ! command -v rclone >/dev/null 2>&1; then
+        DEBIAN_FRONTEND=noninteractive apt-get install -y restic rclone
       fi
       ;;
   esac

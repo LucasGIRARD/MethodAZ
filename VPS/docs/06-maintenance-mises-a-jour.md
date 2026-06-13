@@ -54,14 +54,63 @@ nécessaire pour valider le système, TLS et le DNS :
 
 ## Copie externe chiffrée
 
-Restic est installé uniquement si `ENABLE_REMOTE_BACKUP=true`. Il chiffre les
-données avant leur envoi vers un stockage S3 compatible.
+Restic et rclone sont installés uniquement si `ENABLE_REMOTE_BACKUP=true`.
+Restic chiffre et déduplique les données avant leur envoi. Le backend
+recommandé est le compte gratuit Koofr, utilisé par l'intermédiaire de rclone.
+Le mot de passe d'application Koofr n'est donc jamais transmis à Restic.
 
-Préparer trois fichiers root :
+### Préparer Koofr
+
+Créer un compte Koofr, puis ouvrir les préférences du compte et générer un
+mot de passe d'application nommé par exemple `vps-rclone`. Ne pas utiliser le
+mot de passe principal du compte.
+
+Activer la sauvegarde dans `install/config/vps.env` avant d'appliquer
+l'installation :
+
+```bash
+ENABLE_REMOTE_BACKUP=true
+```
+
+Réappliquer les phases `base` et `docker`. Elles installent `restic` et
+`rclone` :
+
+```bash
+sudo vps-install --phase base
+sudo vps-install --phase docker
+```
+
+Créer ensuite le remote rclone avec le compte Koofr et son mot de passe
+d'application :
 
 ```bash
 sudo install -d -m 0700 /etc/vps-backup
-printf '%s\n' 's3:https://ENDPOINT/BUCKET/vps' \
+sudo rclone config --config /etc/vps-backup/rclone.conf
+```
+
+Dans l'assistant :
+
+1. choisir `n` pour créer un remote ;
+2. le nommer exactement `koofr` ;
+3. choisir le type de stockage `koofr` ;
+4. choisir le fournisseur `Koofr` ;
+5. saisir l'adresse électronique du compte et le mot de passe d'application ;
+6. refuser la configuration avancée et confirmer le remote.
+
+Protéger puis tester cette configuration :
+
+```bash
+sudo chmod 0600 /etc/vps-backup/rclone.conf
+sudo rclone lsd koofr: --config /etc/vps-backup/rclone.conf
+```
+
+### Préparer Restic
+
+Créer le dépôt et les secrets root :
+
+```bash
+sudo install -d -m 0700 /etc/vps-backup
+printf '%s\n' 'rclone:koofr:vps-restic' \
   | sudo tee /etc/vps-backup/restic-repository >/dev/null
 openssl rand -base64 48 \
   | sudo tee /etc/vps-backup/restic-password >/dev/null
@@ -71,20 +120,20 @@ sudo nano /etc/vps-backup/restic.env
 sudo chmod 0600 /etc/vps-backup/restic-*
 ```
 
-Conserver une copie hors du VPS du mot de passe Restic. Sans ce mot de passe,
-la sauvegarde est irrécupérable.
-
-Activer ensuite dans `install/config/vps.env` :
+Le fichier `restic.env` doit contenir :
 
 ```bash
-ENABLE_REMOTE_BACKUP=true
+RCLONE_CONFIG=/etc/vps-backup/rclone.conf
 ```
 
-Réappliquer les phases `base` et `docker`, puis initialiser une seule fois :
+Conserver hors du VPS une copie chiffrée de `restic-repository`,
+`restic-password`, `restic.env` et `rclone.conf`. Sans le mot de passe Restic,
+la sauvegarde est irrécupérable. La configuration rclone peut être recréée si
+l'accès au compte Koofr est encore disponible.
+
+Initialiser une seule fois, puis vérifier une première sauvegarde :
 
 ```bash
-sudo vps-install --phase base
-sudo vps-install --phase docker
 sudo vps-backup
 sudo vps-backup-remote init
 sudo vps-backup-remote backup
@@ -93,8 +142,18 @@ sudo vps-backup-remote snapshots
 
 La rétention distante conserve par défaut 7 sauvegardes quotidiennes, 5
 hebdomadaires et 12 mensuelles. Le dimanche, Restic exécute `prune` et
-`check`. Les identifiants S3 doivent être limités au bucket ; activer aussi le
-versionnement ou la rétention immuable proposée par le fournisseur.
+`check`. Sur l'espace gratuit Koofr, surveiller l'occupation et réduire par
+exemple `REMOTE_BACKUP_KEEP_WEEKLY` à `4` et
+`REMOTE_BACKUP_KEEP_MONTHLY` à `3` si nécessaire. Restic déduplique les
+données : le nombre de snapshots ne correspond pas au volume total multiplié
+par ce nombre.
+
+### Conserver un backend S3
+
+S3 reste pris en charge. Utiliser dans `restic-repository` une URL
+`s3:https://ENDPOINT/BUCKET/vps`, puis définir `AWS_ACCESS_KEY_ID`,
+`AWS_SECRET_ACCESS_KEY` et, si nécessaire, `AWS_DEFAULT_REGION` dans
+`restic.env`. Les identifiants doivent être limités au bucket.
 
 ## Fenêtre nocturne
 
@@ -225,6 +284,8 @@ Les procédures de retour arrière sont décrites dans
 
 ## Références
 
+- [Rclone : configurer Koofr](https://rclone.org/koofr/)
+- [Restic : utiliser un backend rclone](https://restic.readthedocs.io/en/stable/030_preparing_a_new_repo.html#other-services-via-rclone)
 - [Restic : préparer un dépôt S3](https://restic.readthedocs.io/en/stable/030_preparing_a_new_repo.html)
 - [Restic : rétention et suppression](https://restic.readthedocs.io/en/stable/060_forget.html)
 - [PostgreSQL : sauvegarde et restauration SQL](https://www.postgresql.org/docs/current/backup-dump.html)

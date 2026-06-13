@@ -59,6 +59,30 @@ set -a
 . "$RESTIC_ENV_FILE"
 set +a
 
+repository=$(sed -n '1p' "$RESTIC_REPOSITORY_FILE")
+case "$repository" in
+  rclone:*)
+    command -v rclone >/dev/null 2>&1 || {
+      echo "rclone est introuvable pour le dépôt Restic configuré." >&2
+      exit 1
+    }
+    RCLONE_CONFIG=${RCLONE_CONFIG:-/etc/vps-backup/rclone.conf}
+    export RCLONE_CONFIG
+    [ -r "$RCLONE_CONFIG" ] || {
+      echo "Configuration rclone absente ou illisible : $RCLONE_CONFIG" >&2
+      exit 1
+    }
+    mode=$(stat -c '%a' "$RCLONE_CONFIG")
+    case "$mode" in
+      400|600) ;;
+      *)
+        echo "Le fichier $RCLONE_CONFIG doit avoir le mode 0600 ou 0400." >&2
+        exit 1
+        ;;
+    esac
+    ;;
+esac
+
 install -d -m 0700 "$STATUS_DIR" "$RESTIC_CACHE_DIR" /run/lock
 exec 9>/run/lock/vps-backup-remote.lock
 flock -n 9 || {

@@ -1,0 +1,53 @@
+{
+  "types": {
+    "markdown": [
+      "",
+      "env",
+      "example",
+      "md",
+      "txt",
+      "js",
+      "css",
+      "ts",
+      "jsx",
+      "tsx",
+      "yaml",
+      "yml",
+      "sass",
+      "scss",
+      "sh",
+      "tex",
+      "json",
+      "html"
+    ]
+  },
+  "configIsValid": true,
+  "errors": {
+    "": "Could not register extension: '' to view type: markdown.  is already registered to markdown.",
+    "scss": "Could not register extension: 'scss' to view type: markdown. scss is already registered to markdown."
+  },
+  "allowMdOverride": true,
+  "mobileSettings": {
+    "enabled": false,
+    "configIsValid": true,
+    "types": {
+      "markdown": [
+        "",
+        "md",
+        "txt",
+        "js",
+        "css",
+        "ts",
+        "jsx",
+        "tsx",
+        "yaml",
+        "yml",
+        "sass",
+        "scss",
+        "tex",
+        "json",
+        "html"
+      ]
+    }
+  }
+}

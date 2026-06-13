@@ -57,7 +57,8 @@ Lire et appliquer les documents dans cet ordre :
 - Maintenance : sauvegarde et contrôles démarrés vers `02:15`, puis mises à
   jour Debian à `04:15` et `04:45`, selon le fuseau `Europe/Paris`.
 - Restaurations : test SQL isolé le premier jour du mois.
-- Sauvegarde externe : Restic/S3 chiffré, facultatif et désactivé par défaut.
+- Sauvegarde externe : Restic chiffré vers Koofr via rclone, facultatif et
+  désactivé par défaut. Un backend S3 reste possible.
 - Ressources : limites mémoire `VPS_2G` ou `VPS_4G`.
 
 ## Installation rapide

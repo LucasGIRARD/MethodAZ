@@ -1,4 +1,13 @@
 [
   "editing-toolbar",
-  "mermaid-tools"
+  "mermaid-tools",
+  "obsidian-icon-folder",
+  "obsidian-checklist-plugin",
+  "oz-image-plugin",
+  "file-tree-alternative",
+  "find-unlinked-files",
+  "webpage-html-export",
+  "docxer",
+  "css-editor",
+  "obsidian-custom-file-extensions-plugin"
 ]
