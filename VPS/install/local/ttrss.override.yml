@@ -1,0 +1,15 @@
+services:
+  app:
+    volumes:
+      - ttrss_app:/var/www/html
+
+  updater:
+    volumes:
+      - ttrss_app:/var/www/html
+
+  nginx:
+    volumes:
+      - ttrss_app:/var/www/html:ro
+
+volumes:
+  ttrss_app:

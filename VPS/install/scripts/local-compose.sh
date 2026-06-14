@@ -10,6 +10,7 @@ CONFIG_EXAMPLE="$LOCAL_DIR/vps.env.example"
 SECRETS_FILE="$LOCAL_DIR/secrets.env"
 SECRETS_EXAMPLE="$LOCAL_DIR/secrets.env.example"
 DATABASES_OVERRIDE="$LOCAL_DIR/databases.override.yml"
+TTRSS_OVERRIDE="$LOCAL_DIR/ttrss.override.yml"
 CORE_SERVICES="linkwarden davis freshrss ttrss web"
 ALL_SERVICES="$CORE_SERVICES kill-newsletter"
 MANAGED_STACKS="databases $ALL_SERVICES"
@@ -77,6 +78,14 @@ compose() {
       --env-file "$SECRETS_FILE" \
       -f "$WORK_DIR/$name/docker-compose.yml" \
       -f "$DATABASES_OVERRIDE" \
+      "$@"
+  elif [ "$name" = ttrss ]; then
+    docker compose \
+      --project-name "vps-local-$name" \
+      --env-file "$CONFIG_FILE" \
+      --env-file "$SECRETS_FILE" \
+      -f "$WORK_DIR/$name/docker-compose.yml" \
+      -f "$TTRSS_OVERRIDE" \
       "$@"
   else
     docker compose \

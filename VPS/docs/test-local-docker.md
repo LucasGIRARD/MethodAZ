@@ -16,6 +16,12 @@ Sous Docker Desktop, PostgreSQL utilise le volume Docker nommé
 `install/local/databases.override.yml` évite de monter le répertoire de données
 sur NTFS, dont les permissions ne satisfont pas les contrôles PostgreSQL.
 
+Tiny Tiny RSS utilise également le volume nommé
+`vps-local-ttrss_ttrss_app` avec l'override
+`install/local/ttrss.override.yml`. Son script de démarrage exécute `chown`,
+`rsync` et Git dans `/var/www/html`; un bind mount NTFS peut le faire
+redémarrer avant le lancement de PHP-FPM.
+
 Au premier lancement, les scripts créent automatiquement sur l'hôte :
 
 ```text
