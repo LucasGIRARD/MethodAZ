@@ -72,6 +72,7 @@ services:
       - ./app:/var/www/html:ro
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
     networks:
+      - frontend
       - internal
     read_only: true
     tmpfs:
@@ -102,6 +103,7 @@ services:
       - no-new-privileges:true
 
 networks:
+  frontend:
   internal:
     internal: true
   database:
