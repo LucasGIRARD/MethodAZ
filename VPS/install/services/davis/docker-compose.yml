@@ -1,9 +1,36 @@
 name: davis
 
 services:
+  migrate:
+    image: ghcr.io/tchapi/davis:${DAVIS_VERSION}
+    restart: "no"
+    environment:
+      APP_ENV: prod
+      APP_SECRET: ${DAVIS_APP_SECRET}
+      APP_TIMEZONE: ${TIMEZONE}
+      DATABASE_DRIVER: postgresql
+      DATABASE_URL: "postgresql://davis:${DAVIS_DB_PASSWORD}@postgres:5432/davis?serverVersion=${POSTGRES_MAJOR_VERSION:-16}&charset=UTF-8"
+      TZ: ${TIMEZONE}
+    command:
+      - php
+      - bin/console
+      - doctrine:migrations:migrate
+      - --no-interaction
+    volumes:
+      - davis_www:/var/www/davis
+    networks:
+      - database
+    pids_limit: 128
+    mem_limit: ${DAVIS_MIGRATE_MEMORY_LIMIT:-256m}
+    security_opt:
+      - no-new-privileges:true
+
   app:
     image: ghcr.io/tchapi/davis:${DAVIS_VERSION}
     restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
     environment:
       APP_ENV: prod
       APP_SECRET: ${DAVIS_APP_SECRET}

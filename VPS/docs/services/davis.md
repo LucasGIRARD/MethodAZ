@@ -11,6 +11,10 @@ Le projet utilise l'image PHP-FPM officielle Davis et un frontal Nginx dédié.
 Sa base `davis` est hébergée par l'instance PostgreSQL partagée. Nginx publie
 l'interface HTTP sur `127.0.0.1:3002`.
 
+Avant le démarrage de PHP-FPM, le conteneur ponctuel `migrate` applique
+automatiquement les migrations Doctrine. La commande est idempotente et
+s'exécute à chaque `docker compose up`.
+
 ## Premier démarrage
 
 ```bash
@@ -22,11 +26,10 @@ sudo vps-compose davis logs --tail=100
 curl -fsSI http://127.0.0.1:3002
 ```
 
-Au premier démarrage et après une mise à jour qui contient des migrations :
+Pour relancer manuellement les migrations lors d'un diagnostic :
 
 ```bash
-sudo vps-compose davis exec app \
-  sh -c "APP_ENV=prod bin/console doctrine:migrations:migrate --no-interaction"
+sudo vps-compose davis run --rm migrate
 ```
 
 Après publication par Nginx :
