@@ -84,8 +84,8 @@ Desktop.
 
 - Docker Desktop sous Windows ou macOS, ou Docker Engine sous Linux.
 - Docker Compose v2.
-- Ports locaux `3000` à `3006`, `8080`, `9090`, `9100`, `12345` disponibles
-  selon les services testés.
+- Ports locaux `3000` à `3006` et `9090` disponibles selon les services
+  testés.
 
 Vérification :
 
@@ -234,9 +234,9 @@ ENABLE_CONTAINER_METRICS=true
 ENABLE_LOGS=true
 ```
 
-Puis rejouer `up monitoring`. Loki est publié sur `127.0.0.1:3100` et Alloy
-sur `127.0.0.1:12345`. Alloy lit les journaux des conteneurs via le socket
-Docker local.
+Puis rejouer `up monitoring`. Loki, Alloy, Node Exporter et cAdvisor restent
+internes au réseau Docker ; Grafana et Prometheus y accèdent directement.
+Alloy lit les journaux des conteneurs via le socket Docker local.
 
 Pour les métriques du démon Docker, ouvrir **Docker Desktop > Settings >
 Docker Engine**, ajouter la clé suivante au document JSON existant, puis

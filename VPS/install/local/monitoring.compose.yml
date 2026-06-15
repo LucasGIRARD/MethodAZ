@@ -91,8 +91,6 @@ services:
       - --path.rootfs=/host
       - --web.listen-address=0.0.0.0:9100
       - --collector.filesystem.mount-points-exclude=^/(dev|proc|sys|var/lib/docker/.+|var/lib/containers/storage/.+)($$|/)
-    ports:
-      - "127.0.0.1:9100:9100"
     volumes:
       - /:/host:ro
     read_only: true
@@ -111,7 +109,7 @@ services:
   cadvisor:
     profiles:
       - containers
-    image: ghcr.io/google/cadvisor:${CADVISOR_VERSION}
+    image: ${CADVISOR_IMAGE:-ghcr.io/google/cadvisor:v0.57.0}
     command:
       - --listen_ip=0.0.0.0
       - --port=8080
@@ -119,8 +117,6 @@ services:
       - --housekeeping_interval=15s
       - --store_container_labels=false
       - --whitelisted_container_labels=com.docker.compose.project,com.docker.compose.service
-    ports:
-      - "127.0.0.1:8080:8080"
     volumes:
       - /:/rootfs:ro
       - /var/run:/var/run:ro
@@ -168,8 +164,6 @@ services:
     user: "10001:10001"
     command:
       - -config.file=/etc/loki/config.yml
-    ports:
-      - "127.0.0.1:3100:3100"
     volumes:
       - ./monitoring/loki.yml:/etc/loki/config.yml:ro
       - loki_data:/loki
@@ -199,8 +193,6 @@ services:
       - --server.http.listen-addr=0.0.0.0:12345
       - --storage.path=/var/lib/alloy
       - /etc/alloy/config.alloy
-    ports:
-      - "127.0.0.1:12345:12345"
     volumes:
       - ./monitoring/alloy.alloy:/etc/alloy/config.alloy:ro
       - alloy_data:/var/lib/alloy

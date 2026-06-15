@@ -101,7 +101,7 @@ services:
   cadvisor:
     profiles:
       - containers
-    image: ghcr.io/google/cadvisor:${CADVISOR_VERSION}
+    image: ${CADVISOR_IMAGE:-ghcr.io/google/cadvisor:v0.57.0}
     network_mode: host
     command:
       - --listen_ip=127.0.0.1
