@@ -1,0 +1,13 @@
+apiVersion: 1
+
+providers:
+  - name: Test local
+    orgId: 1
+    folder: Test local
+    type: file
+    disableDeletion: false
+    editable: false
+    updateIntervalSeconds: 10
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false

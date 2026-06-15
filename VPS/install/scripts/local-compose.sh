@@ -66,7 +66,9 @@ env_value() {
 }
 
 env_enabled() {
-  value=$(env_value "$1" false | tr '[:upper:]' '[:lower:]')
+  name=$1
+  default_value=${2:-false}
+  value=$(env_value "$name" "$default_value" | tr '[:upper:]' '[:lower:]')
   case "$value" in
     1|true|yes|on) return 0 ;;
     *) return 1 ;;
@@ -183,13 +185,13 @@ compose() {
 start_monitoring() {
   compose monitoring up -d --remove-orphans grafana prometheus node-exporter
 
-  if env_enabled ENABLE_CONTAINER_METRICS; then
+  if env_enabled ENABLE_CONTAINER_METRICS true; then
     compose monitoring up -d cadvisor
   else
     compose monitoring rm --stop --force cadvisor
   fi
 
-  if env_enabled ENABLE_LOGS; then
+  if env_enabled ENABLE_LOGS true; then
     compose monitoring up -d loki alloy
   else
     compose monitoring rm --stop --force alloy loki loki-init
@@ -199,11 +201,11 @@ start_monitoring() {
 pull_monitoring() {
   compose monitoring pull grafana prometheus node-exporter
 
-  if env_enabled ENABLE_CONTAINER_METRICS; then
+  if env_enabled ENABLE_CONTAINER_METRICS true; then
     compose monitoring pull cadvisor
   fi
 
-  if env_enabled ENABLE_LOGS; then
+  if env_enabled ENABLE_LOGS true; then
     compose monitoring pull loki-init loki alloy
   fi
 }

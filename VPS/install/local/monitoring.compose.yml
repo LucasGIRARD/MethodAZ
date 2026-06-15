@@ -27,12 +27,13 @@ services:
       GF_SECURITY_COOKIE_SAMESITE: strict
       GF_SECURITY_ALLOW_EMBEDDING: "false"
       GF_SECURITY_DATA_SOURCE_PROXY_WHITELIST: prometheus:9090 loki:3100
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/docker-desktop.json
     ports:
       - "127.0.0.1:3000:3000"
     volumes:
       - grafana_data:/var/lib/grafana
-      - ./work/monitoring/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
-      - ./work/monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - ./monitoring/grafana-dashboard-provider.yml:/etc/grafana/provisioning/dashboards/local.yml:ro
+      - ./monitoring/dashboards:/var/lib/grafana/dashboards:ro
       - ./monitoring/grafana-datasources.yml:/etc/grafana/provisioning/datasources/observability.yml:ro
     read_only: true
     tmpfs:
@@ -119,7 +120,7 @@ services:
       - --whitelisted_container_labels=com.docker.compose.project,com.docker.compose.service
     volumes:
       - /:/rootfs:ro
-      - /var/run:/var/run:ro
+      - /var/run:/var/run:rw
       - /sys:/sys:ro
       - /var/lib/docker:/var/lib/docker:ro
     read_only: true

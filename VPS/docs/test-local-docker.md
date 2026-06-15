@@ -80,6 +80,10 @@ il reste à tester dans une VM Debian 13 ou sur le VPS. La supervision locale
 utilise une composition dédiée compatible avec le réseau bridge de Docker
 Desktop.
 
+Grafana provisionne localement un dashboard distinct nommé
+`Test local - Docker Desktop`. Le dashboard Debian de production n'est pas
+chargé dans cet environnement.
+
 ## Prérequis
 
 - Docker Desktop sous Windows ou macOS, ou Docker Engine sous Linux.
@@ -226,8 +230,9 @@ sh install/scripts/local-compose.sh up monitoring
 Grafana est disponible sur `http://localhost:3000` et Prometheus sur
 `http://localhost:9090`.
 
-Activer cAdvisor et la collecte des journaux Docker dans
-`install/local/vps.env` :
+Le profil local complet active cAdvisor et la collecte des journaux Docker
+par défaut. Pour un ancien fichier `install/local/vps.env`, ajouter ou mettre
+à jour :
 
 ```dotenv
 ENABLE_CONTAINER_METRICS=true
@@ -237,6 +242,14 @@ ENABLE_LOGS=true
 Puis rejouer `up monitoring`. Loki, Alloy, Node Exporter et cAdvisor restent
 internes au réseau Docker ; Grafana et Prometheus y accèdent directement.
 Alloy lit les journaux des conteneurs via le socket Docker local.
+
+Une valeur explicite `false` désactive le composant correspondant. Si les
+variables sont absentes, les scripts locaux utilisent `true`.
+
+Le dashboard local affiche l'état des collecteurs, les ressources de la VM
+Linux Docker Desktop, les ressources des conteneurs, les métriques du démon
+Docker et les journaux. Les indicateurs strictement Debian de production,
+comme APT, systemd, Fail2ban, sauvegardes et restauration, n'y figurent pas.
 
 Pour les métriques du démon Docker, ouvrir **Docker Desktop > Settings >
 Docker Engine**, ajouter la clé suivante au document JSON existant, puis

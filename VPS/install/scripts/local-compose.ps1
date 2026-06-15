@@ -96,10 +96,13 @@ function Get-LocalEnvValue {
 function Test-LocalEnvEnabled {
     param(
         [Parameter(Mandatory)]
-        [string]$Name
+        [string]$Name,
+
+        [bool]$Default = $false
     )
 
-    $value = (Get-LocalEnvValue -Name $Name -Default "false").ToLowerInvariant()
+    $defaultValue = if ($Default) { "true" } else { "false" }
+    $value = (Get-LocalEnvValue -Name $Name -Default $defaultValue).ToLowerInvariant()
     return @("1", "true", "yes", "on") -contains $value
 }
 
@@ -228,14 +231,14 @@ function Start-LocalMonitoring {
         "up", "-d", "--remove-orphans", "grafana", "prometheus", "node-exporter"
     )
 
-    if (Test-LocalEnvEnabled -Name "ENABLE_CONTAINER_METRICS") {
+    if (Test-LocalEnvEnabled -Name "ENABLE_CONTAINER_METRICS" -Default $true) {
         Invoke-Stack -Name "monitoring" -Arguments @("up", "-d", "cadvisor")
     }
     else {
         Invoke-Stack -Name "monitoring" -Arguments @("rm", "--stop", "--force", "cadvisor")
     }
 
-    if (Test-LocalEnvEnabled -Name "ENABLE_LOGS") {
+    if (Test-LocalEnvEnabled -Name "ENABLE_LOGS" -Default $true) {
         Invoke-Stack -Name "monitoring" -Arguments @("up", "-d", "loki", "alloy")
     }
     else {
@@ -248,11 +251,11 @@ function Pull-LocalMonitoring {
         "pull", "grafana", "prometheus", "node-exporter"
     )
 
-    if (Test-LocalEnvEnabled -Name "ENABLE_CONTAINER_METRICS") {
+    if (Test-LocalEnvEnabled -Name "ENABLE_CONTAINER_METRICS" -Default $true) {
         Invoke-Stack -Name "monitoring" -Arguments @("pull", "cadvisor")
     }
 
-    if (Test-LocalEnvEnabled -Name "ENABLE_LOGS") {
+    if (Test-LocalEnvEnabled -Name "ENABLE_LOGS" -Default $true) {
         Invoke-Stack -Name "monitoring" -Arguments @("pull", "loki-init", "loki", "alloy")
     }
 }
