@@ -43,7 +43,7 @@ apply_stack() {
       ;;
     *)
       compose --profile logs stop alloy loki >/dev/null 2>&1 || true
-      compose --profile logs rm -f alloy loki loki-init >/dev/null 2>&1 || true
+      compose --profile logs rm -f alloy alloy-init loki loki-init >/dev/null 2>&1 || true
       ;;
   esac
 

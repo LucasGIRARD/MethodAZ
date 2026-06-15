@@ -1,6 +1,26 @@
 name: monitoring
 
 services:
+  prometheus-init:
+    image: alpine:${ALPINE_VERSION}
+    user: "0:0"
+    command:
+      - sh
+      - -c
+      - chown 65534:65534 /prometheus
+    volumes:
+      - prometheus_data:/prometheus
+    read_only: true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+    pids_limit: 32
+    mem_limit: 32m
+    security_opt:
+      - no-new-privileges:true
+    restart: "no"
+
   grafana:
     image: grafana/grafana:${GRAFANA_VERSION}
     user: "472:472"
@@ -81,6 +101,9 @@ services:
     mem_limit: ${PROMETHEUS_MEMORY_LIMIT:-512m}
     security_opt:
       - no-new-privileges:true
+    depends_on:
+      prometheus-init:
+        condition: service_completed_successfully
     networks:
       - monitoring
     restart: unless-stopped
@@ -208,10 +231,35 @@ services:
     security_opt:
       - no-new-privileges:true
     depends_on:
-      - loki
+      loki:
+        condition: service_started
+      alloy-init:
+        condition: service_completed_successfully
     networks:
       - monitoring
     restart: unless-stopped
+
+  alloy-init:
+    profiles:
+      - logs
+    image: alpine:${ALPINE_VERSION}
+    user: "0:0"
+    command:
+      - sh
+      - -c
+      - chown 0:0 /var/lib/alloy
+    volumes:
+      - alloy_data:/var/lib/alloy
+    read_only: true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+    pids_limit: 32
+    mem_limit: 32m
+    security_opt:
+      - no-new-privileges:true
+    restart: "no"
 
 networks:
   monitoring:

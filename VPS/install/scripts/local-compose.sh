@@ -194,19 +194,19 @@ start_monitoring() {
   if env_enabled ENABLE_LOGS true; then
     compose monitoring up -d loki alloy
   else
-    compose monitoring rm --stop --force alloy loki loki-init
+    compose monitoring rm --stop --force alloy alloy-init loki loki-init
   fi
 }
 
 pull_monitoring() {
-  compose monitoring pull grafana prometheus node-exporter
+  compose monitoring pull prometheus-init grafana prometheus node-exporter
 
   if env_enabled ENABLE_CONTAINER_METRICS true; then
     compose monitoring pull cadvisor
   fi
 
   if env_enabled ENABLE_LOGS true; then
-    compose monitoring pull loki-init loki alloy
+    compose monitoring pull loki-init loki alloy-init alloy
   fi
 }
 

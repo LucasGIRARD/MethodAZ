@@ -242,13 +242,15 @@ function Start-LocalMonitoring {
         Invoke-Stack -Name "monitoring" -Arguments @("up", "-d", "loki", "alloy")
     }
     else {
-        Invoke-Stack -Name "monitoring" -Arguments @("rm", "--stop", "--force", "alloy", "loki", "loki-init")
+        Invoke-Stack -Name "monitoring" -Arguments @(
+            "rm", "--stop", "--force", "alloy", "alloy-init", "loki", "loki-init"
+        )
     }
 }
 
 function Pull-LocalMonitoring {
     Invoke-Stack -Name "monitoring" -Arguments @(
-        "pull", "grafana", "prometheus", "node-exporter"
+        "pull", "prometheus-init", "grafana", "prometheus", "node-exporter"
     )
 
     if (Test-LocalEnvEnabled -Name "ENABLE_CONTAINER_METRICS" -Default $true) {
@@ -256,7 +258,7 @@ function Pull-LocalMonitoring {
     }
 
     if (Test-LocalEnvEnabled -Name "ENABLE_LOGS" -Default $true) {
-        Invoke-Stack -Name "monitoring" -Arguments @("pull", "loki-init", "loki", "alloy")
+        Invoke-Stack -Name "monitoring" -Arguments @("pull", "loki-init", "loki", "alloy-init", "alloy")
     }
 }
 
