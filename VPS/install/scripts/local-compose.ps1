@@ -3,7 +3,7 @@ param(
     [ValidateSet("init", "validate", "pull", "up", "down", "restart", "ps", "logs", "clean")]
     [string]$Action = "validate",
 
-    [ValidateSet("all", "databases", "linkwarden", "davis", "freshrss", "ttrss", "kill-newsletter", "web")]
+    [ValidateSet("all", "databases", "linkwarden", "davis", "freshrss", "ttrss", "kill-newsletter", "web", "monitoring")]
     [string]$Service = "all"
 )
 
@@ -18,10 +18,12 @@ $SecretsFile = Join-Path $LocalDir "secrets.env"
 $SecretsExample = Join-Path $LocalDir "secrets.env.example"
 $DatabasesOverride = Join-Path $LocalDir "databases.override.yml"
 $TtrssOverride = Join-Path $LocalDir "ttrss.override.yml"
+$KillNewsletterOverride = Join-Path $LocalDir "kill-newsletter.override.yml"
+$MonitoringCompose = Join-Path $LocalDir "monitoring.compose.yml"
 
 $CoreServices = @("linkwarden", "davis", "freshrss", "ttrss", "web")
 $AllServices = @($CoreServices + "kill-newsletter")
-$ManagedStacks = @("databases") + $AllServices
+$ManagedStacks = @("databases") + $AllServices + "monitoring"
 
 function Assert-Docker {
     if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
@@ -54,11 +56,10 @@ function Initialize-Local {
     }
 
     foreach ($name in $ManagedStacks) {
-        $source = if ($name -eq "databases") {
-            Join-Path $InstallDir "databases"
-        }
-        else {
-            Join-Path $InstallDir "services\$name"
+        $source = switch ($name) {
+            "databases" { Join-Path $InstallDir "databases" }
+            "monitoring" { Join-Path $InstallDir "monitoring" }
+            default { Join-Path $InstallDir "services\$name" }
         }
         $target = Join-Path $WorkDir $name
         New-Item -ItemType Directory -Force -Path $target | Out-Null
@@ -72,12 +73,108 @@ function Initialize-Local {
     }
 }
 
+function Get-LocalEnvValue {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Name,
+
+        [string]$Default = ""
+    )
+
+    if (Test-Path -LiteralPath $ConfigFile) {
+        $pattern = "^\s*$([regex]::Escape($Name))=(.*)$"
+        foreach ($line in Get-Content -LiteralPath $ConfigFile -Encoding utf8) {
+            if ($line -match $pattern) {
+                return $Matches[1].Trim().Trim('"').Trim("'")
+            }
+        }
+    }
+
+    return $Default
+}
+
+function Test-LocalEnvEnabled {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Name
+    )
+
+    $value = (Get-LocalEnvValue -Name $Name -Default "false").ToLowerInvariant()
+    return @("1", "true", "yes", "on") -contains $value
+}
+
+function Initialize-KillNewsletterSource {
+    $repository = Get-LocalEnvValue `
+        -Name "KILL_NEWSLETTER_REPOSITORY" `
+        -Default "https://github.com/leafac/kill-the-newsletter.git"
+    $reference = Get-LocalEnvValue `
+        -Name "KILL_NEWSLETTER_REF" `
+        -Default "a7bb41c2f483db33f4516c1c56f3db3d43fc959a"
+    $target = Join-Path $WorkDir "kill-newsletter\app"
+
+    if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
+        throw "Git est requis pour récupérer Kill the Newsletter."
+    }
+
+    if (-not (Test-Path -LiteralPath (Join-Path $target ".git"))) {
+        if (Test-Path -LiteralPath $target) {
+            $entries = @(Get-ChildItem -LiteralPath $target -Force)
+            if ($entries.Count -gt 0) {
+                throw "Le répertoire $target existe mais n'est pas un dépôt Git."
+            }
+        }
+
+        & git clone --filter=blob:none $repository $target
+        if ($LASTEXITCODE -ne 0) {
+            throw "Impossible de cloner Kill the Newsletter."
+        }
+    }
+
+    $current = (& git -C $target rev-parse HEAD).Trim()
+    if ($LASTEXITCODE -ne 0) {
+        throw "Le dépôt Kill the Newsletter est invalide."
+    }
+
+    if ($current -ne $reference) {
+        $changes = @(& git -C $target status --porcelain)
+        if ($LASTEXITCODE -ne 0) {
+            throw "Impossible de vérifier le dépôt Kill the Newsletter."
+        }
+        if ($changes.Count -gt 0) {
+            throw "Le dépôt Kill the Newsletter contient des modifications locales ; impossible de sélectionner $reference."
+        }
+
+        & git -C $target remote set-url origin $repository
+        if ($LASTEXITCODE -ne 0) {
+            throw "Impossible de configurer le dépôt Kill the Newsletter."
+        }
+        & git -C $target fetch --depth 1 origin $reference
+        if ($LASTEXITCODE -ne 0) {
+            throw "Impossible de récupérer la révision Kill the Newsletter $reference."
+        }
+        & git -C $target checkout --detach FETCH_HEAD
+        if ($LASTEXITCODE -ne 0) {
+            throw "Impossible de sélectionner la révision Kill the Newsletter $reference."
+        }
+    }
+
+    if (-not (Test-Path -LiteralPath (Join-Path $target "package.json"))) {
+        throw "Le dépôt Kill the Newsletter ne contient pas package.json."
+    }
+}
+
 function Get-SelectedServices {
     if ($Service -eq "all") {
         return $CoreServices
     }
 
     return @($Service)
+}
+
+function Test-NeedsDatabases {
+    return $Service -eq "all" -or
+        $Service -eq "databases" -or
+        $CoreServices -contains $Service
 }
 
 function Invoke-Stack {
@@ -89,7 +186,12 @@ function Invoke-Stack {
         [string[]]$Arguments
     )
 
-    $composeFile = Join-Path $WorkDir "$Name\docker-compose.yml"
+    $composeFile = if ($Name -eq "monitoring") {
+        $MonitoringCompose
+    }
+    else {
+        Join-Path $WorkDir "$Name\docker-compose.yml"
+    }
     if (-not (Test-Path -LiteralPath $composeFile)) {
         throw "Projet local absent : $Name. Exécuter d'abord l'action init."
     }
@@ -107,11 +209,51 @@ function Invoke-Stack {
     elseif ($Name -eq "ttrss") {
         $dockerArguments += @("-f", $TtrssOverride)
     }
+    elseif ($Name -eq "kill-newsletter") {
+        $dockerArguments += @("-f", $KillNewsletterOverride)
+    }
+    elseif ($Name -eq "monitoring") {
+        $dockerArguments += @("--profile", "containers", "--profile", "logs")
+    }
     $dockerArguments += $Arguments
 
     & docker @dockerArguments
     if ($LASTEXITCODE -ne 0) {
         throw "Échec Docker Compose pour $Name."
+    }
+}
+
+function Start-LocalMonitoring {
+    Invoke-Stack -Name "monitoring" -Arguments @(
+        "up", "-d", "--remove-orphans", "grafana", "prometheus", "node-exporter"
+    )
+
+    if (Test-LocalEnvEnabled -Name "ENABLE_CONTAINER_METRICS") {
+        Invoke-Stack -Name "monitoring" -Arguments @("up", "-d", "cadvisor")
+    }
+    else {
+        Invoke-Stack -Name "monitoring" -Arguments @("rm", "--stop", "--force", "cadvisor")
+    }
+
+    if (Test-LocalEnvEnabled -Name "ENABLE_LOGS") {
+        Invoke-Stack -Name "monitoring" -Arguments @("up", "-d", "loki", "alloy")
+    }
+    else {
+        Invoke-Stack -Name "monitoring" -Arguments @("rm", "--stop", "--force", "alloy", "loki", "loki-init")
+    }
+}
+
+function Pull-LocalMonitoring {
+    Invoke-Stack -Name "monitoring" -Arguments @(
+        "pull", "grafana", "prometheus", "node-exporter"
+    )
+
+    if (Test-LocalEnvEnabled -Name "ENABLE_CONTAINER_METRICS") {
+        Invoke-Stack -Name "monitoring" -Arguments @("pull", "cadvisor")
+    }
+
+    if (Test-LocalEnvEnabled -Name "ENABLE_LOGS") {
+        Invoke-Stack -Name "monitoring" -Arguments @("pull", "loki-init", "loki", "alloy")
     }
 }
 
@@ -125,11 +267,6 @@ function Test-AllCompose {
             Name = "gateway"
             File = Join-Path $InstallDir "gateway\docker-compose.yml"
             Profile = "manual"
-        },
-        @{
-            Name = "monitoring"
-            File = Join-Path $InstallDir "monitoring\docker-compose.yml"
-            Profile = @("containers", "logs")
         }
     )
 
@@ -170,12 +307,21 @@ switch ($Action) {
         Write-Host "Tous les projets Compose sont valides."
     }
     "pull" {
-        Invoke-Stack -Name "databases" -Arguments @("pull")
+        if (Test-NeedsDatabases) {
+            Invoke-Stack -Name "databases" -Arguments @("pull")
+        }
         foreach ($name in Get-SelectedServices) {
             if ($name -eq "databases") {
                 continue
             }
-            if ($name -eq "web") {
+            if ($name -eq "kill-newsletter") {
+                Initialize-KillNewsletterSource
+                Invoke-Stack -Name $name -Arguments @("build", "--pull")
+            }
+            elseif ($name -eq "monitoring") {
+                Pull-LocalMonitoring
+            }
+            elseif ($name -eq "web") {
                 Invoke-Stack -Name $name -Arguments @("build", "--pull")
             }
             else {
@@ -184,19 +330,30 @@ switch ($Action) {
         }
     }
     "up" {
-        Invoke-Stack -Name "databases" -Arguments @("up", "-d", "--wait")
+        if (Test-NeedsDatabases) {
+            Invoke-Stack -Name "databases" -Arguments @("up", "-d", "--wait")
+        }
         foreach ($name in Get-SelectedServices) {
             if ($name -eq "databases") {
                 continue
             }
-            if ($name -eq "kill-newsletter" -and
-                -not (Test-Path -LiteralPath (Join-Path $WorkDir "kill-newsletter\app\Dockerfile"))) {
-                throw "Le dépôt Kill the Newsletter doit être cloné dans install/local/work/kill-newsletter/app."
+            if ($name -eq "monitoring") {
+                Start-LocalMonitoring
+                continue
+            }
+            if ($name -eq "kill-newsletter") {
+                Initialize-KillNewsletterSource
+                Invoke-Stack -Name $name -Arguments @("up", "-d", "--build")
+                continue
             }
             Invoke-Stack -Name $name -Arguments @("up", "-d")
         }
 
         Write-Host "Services locaux démarrés. Utiliser l'action ps puis les URLs documentées."
+        if ($Service -eq "monitoring") {
+            Write-Host "Grafana : http://localhost:3000"
+            Write-Host "Prometheus : http://localhost:9090"
+        }
     }
     "down" {
         [array]$selected = Get-SelectedServices
@@ -219,12 +376,18 @@ switch ($Action) {
             if ($name -eq "databases") {
                 continue
             }
+            if ($name -eq "monitoring") {
+                Start-LocalMonitoring
+                continue
+            }
             Invoke-Stack -Name $name -Arguments @("restart")
         }
     }
     "ps" {
-        Write-Host "`n### databases"
-        Invoke-Stack -Name "databases" -Arguments @("ps")
+        if (Test-NeedsDatabases) {
+            Write-Host "`n### databases"
+            Invoke-Stack -Name "databases" -Arguments @("ps")
+        }
         foreach ($name in Get-SelectedServices) {
             if ($name -eq "databases") {
                 continue
@@ -234,8 +397,10 @@ switch ($Action) {
         }
     }
     "logs" {
-        Write-Host "`n### databases"
-        Invoke-Stack -Name "databases" -Arguments @("logs", "--tail=100")
+        if (Test-NeedsDatabases) {
+            Write-Host "`n### databases"
+            Invoke-Stack -Name "databases" -Arguments @("logs", "--tail=100")
+        }
         foreach ($name in Get-SelectedServices) {
             if ($name -eq "databases") {
                 continue

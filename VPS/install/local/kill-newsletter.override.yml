@@ -1,0 +1,11 @@
+services:
+  data-init:
+    volumes:
+      - kill_newsletter_data:/app/data
+
+  app:
+    volumes:
+      - kill_newsletter_data:/app/data
+
+volumes:
+  kill_newsletter_data:

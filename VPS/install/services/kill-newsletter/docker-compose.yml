@@ -1,14 +1,44 @@
 name: kill-newsletter
 
 services:
+  data-init:
+    image: alpine:${ALPINE_VERSION:-3.22.4}
+    user: "0:0"
+    command:
+      - sh
+      - -c
+      - chown 1000:1000 /app/data
+    volumes:
+      - ./data:/app/data
+    read_only: true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+    pids_limit: 32
+    mem_limit: 32m
+    security_opt:
+      - no-new-privileges:true
+    restart: "no"
+
   app:
     build:
       context: ./app
+      dockerfile: ../Dockerfile
+      args:
+        NODE_IMAGE: ${KILL_NEWSLETTER_NODE_IMAGE:-node:24-bookworm-slim}
     restart: unless-stopped
+    environment:
+      KILL_NEWSLETTER_HOSTNAME: ${KILL_NEWSLETTER_HOSTNAME:-localhost}
+      KILL_NEWSLETTER_ADMIN_EMAIL: ${KILL_NEWSLETTER_ADMIN_EMAIL:-local@example.invalid}
+    depends_on:
+      data-init:
+        condition: service_completed_successfully
     ports:
       - "127.0.0.1:3005:8000"
     volumes:
       - ./data:/app/data
+      - ./configuration.mjs:/etc/kill-newsletter/configuration.mjs:ro
     pids_limit: 256
     mem_limit: ${KILL_NEWSLETTER_MEMORY_LIMIT:-384m}
     healthcheck:

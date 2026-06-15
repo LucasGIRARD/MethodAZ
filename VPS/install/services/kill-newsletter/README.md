@@ -1,12 +1,13 @@
 # Kill the Newsletter
 
-Le code amont doit être placé dans `app/` avant le premier démarrage :
+L'installateur récupère automatiquement le dépôt amont dans `app/`, puis
+sélectionne le commit défini par `KILL_NEWSLETTER_REF`. Pour l'activer,
+ajouter `kill-newsletter` à `SERVICES`, puis lancer :
 
 ```bash
-git clone https://github.com/3nprob/kill-the-newsletter.com.git \
-  /opt/selfhosted/kill-newsletter/app
-sudo vps-compose kill-newsletter up -d --build
+sudo vps-install --phase services
 ```
 
 Ce service reste absent de la liste activée par défaut, car son exposition
-SMTP nécessite une stratégie DNS et de réputation distincte.
+SMTP nécessite une stratégie DNS et de réputation distincte. Le conteneur
+fourni ici ne démarre que le serveur HTTP.

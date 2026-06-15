@@ -22,6 +22,10 @@ Tiny Tiny RSS utilise également le volume nommé
 `rsync` et Git dans `/var/www/html`; un bind mount NTFS peut le faire
 redémarrer avant le lancement de PHP-FPM.
 
+Kill the Newsletter utilise de la même manière un volume Docker nommé pour
+`/app/data` avec `install/local/kill-newsletter.override.yml`. Le déploiement
+Debian conserve son répertoire hôte sous `/opt/selfhosted`.
+
 Au premier lancement, les scripts créent automatiquement sur l'hôte :
 
 ```text
@@ -64,20 +68,24 @@ commandes suivantes depuis la racine du bundle.
 | Davis | Oui | Oui, port `3002` |
 | FreshRSS | Oui | Oui, port `3003` |
 | Tiny Tiny RSS | Oui | Oui, port `3004` |
-| Kill the Newsletter | Oui | Après clonage du code source |
+| Kill the Newsletter | Oui | Oui, port `3005`, source clonée automatiquement |
 | Apache/PHP | Oui | Oui, port `3006` |
 | Gateway Nginx/Certbot | Oui | Non recommandé |
-| Monitoring complet | Oui | Non recommandé |
+| Grafana, Prometheus, Node Exporter | Oui | Oui |
+| cAdvisor | Oui | Facultatif |
+| Loki et Alloy | Oui | Facultatif |
 
-Le gateway et la supervision utilisent `network_mode: host`, les ports
-`80/443` et des montages Linux comme `/sys`, `/var/run` et `/var/lib/docker`.
-Leur exécution complète doit être testée dans une VM Debian 13 ou sur le VPS.
+Le gateway de production utilise `network_mode: host` et les ports `80/443` ;
+il reste à tester dans une VM Debian 13 ou sur le VPS. La supervision locale
+utilise une composition dédiée compatible avec le réseau bridge de Docker
+Desktop.
 
 ## Prérequis
 
 - Docker Desktop sous Windows ou macOS, ou Docker Engine sous Linux.
 - Docker Compose v2.
-- Ports locaux `3001` à `3006` disponibles pour les services testés.
+- Ports locaux `3000` à `3006`, `8080`, `9090`, `9100`, `12345` disponibles
+  selon les services testés.
 
 Vérification :
 
@@ -162,6 +170,7 @@ http://localhost:3001   Linkwarden
 http://localhost:3002   Davis
 http://localhost:3003   FreshRSS
 http://localhost:3004   Tiny Tiny RSS
+http://localhost:3005   Kill the Newsletter
 http://localhost:3006   Apache/PHP
 ```
 
@@ -197,20 +206,68 @@ Utilisateur admin
 Mot de passe local_davis_admin
 ```
 
+## Supervision locale
+
+Grafana, Prometheus et Node Exporter sont démarrés avec :
+
+```powershell
+.\install\scripts\local-compose.ps1 pull monitoring
+.\install\scripts\local-compose.ps1 up monitoring
+.\install\scripts\local-compose.ps1 ps monitoring
+```
+
+Équivalent POSIX :
+
+```bash
+sh install/scripts/local-compose.sh pull monitoring
+sh install/scripts/local-compose.sh up monitoring
+```
+
+Grafana est disponible sur `http://localhost:3000` et Prometheus sur
+`http://localhost:9090`.
+
+Activer cAdvisor et la collecte des journaux Docker dans
+`install/local/vps.env` :
+
+```dotenv
+ENABLE_CONTAINER_METRICS=true
+ENABLE_LOGS=true
+```
+
+Puis rejouer `up monitoring`. Loki est publié sur `127.0.0.1:3100` et Alloy
+sur `127.0.0.1:12345`. Alloy lit les journaux des conteneurs via le socket
+Docker local.
+
+Pour les métriques du démon Docker, ouvrir **Docker Desktop > Settings >
+Docker Engine**, ajouter la clé suivante au document JSON existant, puis
+appliquer et redémarrer Docker Desktop :
+
+```json
+"metrics-addr": "127.0.0.1:9323"
+```
+
+Prometheus interroge ensuite `host.docker.internal:9323`. Ne pas publier ce
+port sur une autre interface. Node Exporter mesure la VM Linux de Docker
+Desktop, pas les compteurs natifs de Windows ou macOS.
+
+Références :
+
+- [Docker : métriques Prometheus du démon](https://docs.docker.com/engine/daemon/prometheus/)
+- [Grafana Alloy : collecte des journaux Docker](https://grafana.com/docs/alloy/latest/reference/components/loki/loki.source.docker/)
+
 ## Kill the Newsletter
 
-Préparer le code dans le répertoire de travail :
+Le script clone automatiquement le dépôt amont et sélectionne la révision
+`KILL_NEWSLETTER_REF` définie dans `install/local/vps.env` :
 
-```bash
-git clone https://github.com/3nprob/kill-the-newsletter.com.git \
-  install/local/work/kill-newsletter/app
+```powershell
+.\install\scripts\local-compose.ps1 pull kill-newsletter
+.\install\scripts\local-compose.ps1 up kill-newsletter
 ```
 
-Puis lancer uniquement ce service :
-
-```bash
-sh install/scripts/local-compose.sh up kill-newsletter
-```
+Il n'est plus nécessaire de préparer `install/local/work/kill-newsletter/app`
+manuellement. Le mode local démarre uniquement l'interface HTTP ; la
+réception SMTP publique reste hors du périmètre de ce test.
 
 ## Contrôles
 
@@ -219,6 +276,7 @@ curl -fsSI http://localhost:3001
 curl -fsSI http://localhost:3002
 curl -fsSI http://localhost:3003
 curl -fsSI http://localhost:3004
+curl -fsSI http://localhost:3005
 curl -fsS http://localhost:3006
 ```
 

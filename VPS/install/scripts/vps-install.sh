@@ -550,6 +550,30 @@ copy_stack() {
   rsync -a --exclude '.env' "$source/" "$target/"
 }
 
+prepare_kill_newsletter_source() {
+  target=/opt/selfhosted/kill-newsletter/app
+  repository=${KILL_NEWSLETTER_REPOSITORY:-https://github.com/leafac/kill-the-newsletter.git}
+  reference=${KILL_NEWSLETTER_REF:-a7bb41c2f483db33f4516c1c56f3db3d43fc959a}
+
+  if [ ! -d "$target/.git" ]; then
+    if [ -d "$target" ] \
+      && find "$target" -mindepth 1 -print -quit | grep -q .; then
+      die "$target existe mais n'est pas un dépôt Git"
+    fi
+    git clone --filter=blob:none "$repository" "$target"
+  else
+    if [ -n "$(git -C "$target" status --porcelain)" ]; then
+      die "le dépôt Kill the Newsletter contient des modifications locales"
+    fi
+    git -C "$target" remote set-url origin "$repository"
+  fi
+
+  git -C "$target" fetch --depth 1 origin "$reference"
+  git -C "$target" checkout --detach FETCH_HEAD
+  [ -f "$target/package.json" ] \
+    || die "package.json absent du dépôt Kill the Newsletter"
+}
+
 install_databases() {
   [ "${INSTALL_DATABASES:-true}" = true ] || return 0
   log "Bases de données partagées"
@@ -662,6 +686,11 @@ EOF
     kill-newsletter)
       cat > "$target" <<EOF
 KILL_NEWSLETTER_MEMORY_LIMIT=$KILL_NEWSLETTER_MEMORY_LIMIT
+KILL_NEWSLETTER_NODE_IMAGE=${KILL_NEWSLETTER_NODE_IMAGE:-node:24-bookworm-slim}
+KILL_NEWSLETTER_REPOSITORY=${KILL_NEWSLETTER_REPOSITORY:-https://github.com/leafac/kill-the-newsletter.git}
+KILL_NEWSLETTER_REF=${KILL_NEWSLETTER_REF:-a7bb41c2f483db33f4516c1c56f3db3d43fc959a}
+KILL_NEWSLETTER_HOSTNAME=$NEWSLETTER_DOMAIN
+KILL_NEWSLETTER_ADMIN_EMAIL=$ADMIN_EMAIL
 EOF
       ;;
   esac
@@ -682,6 +711,9 @@ install_services() {
     source="$INSTALL_DIR/services/$service"
     [ -d "$source" ] || die "modèle de service absent : $service"
     copy_stack "$service" "$source"
+    if [ "$service" = kill-newsletter ]; then
+      prepare_kill_newsletter_source
+    fi
     write_service_env "$service"
     chown root:root "/opt/selfhosted/$service"
     chown root:root "/opt/selfhosted/$service/docker-compose.yml"

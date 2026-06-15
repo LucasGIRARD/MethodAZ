@@ -264,9 +264,10 @@ sudo vps-monitoring apply
 docker image prune -f
 ```
 
-`kill-newsletter` est construit localement. Mettre d'abord son dépôt sur un
-commit explicitement choisi, puis reconstruire avec
-`sudo vps-compose kill-newsletter up -d --build`.
+`kill-newsletter` est construit localement. Sa source est verrouillée par
+`KILL_NEWSLETTER_REF` dans la configuration. Après avoir choisi et vérifié un
+nouveau commit, rejouer `sudo vps-install --phase services` pour mettre à jour
+le dépôt et reconstruire le conteneur.
 
 ## Vérification après maintenance
 
