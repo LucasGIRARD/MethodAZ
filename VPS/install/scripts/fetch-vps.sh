@@ -137,7 +137,7 @@ select_version() {
   done
 
   printf "Version à installer [1] : " >&2
-  read answer
+  read -r answer
   [ -n "$answer" ] || answer=1
 
   i=0
