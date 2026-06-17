@@ -64,11 +64,15 @@ Lire et appliquer les documents dans cet ordre :
 ## Installation rapide
 
 Télécharger d'abord uniquement le bundle `VPS` en suivant
-[Téléchargement depuis GitHub](docs/telechargement-github.md), puis :
+[Téléchargement depuis GitHub](docs/telechargement-github.md).
+
+Créer ensuite `install/config/vps.env` depuis le modèle
+[vps.env.example de la dernière release](https://github.com/LucasGIRARD/MethodAZ/releases/latest/download/vps.env.example)
+ou, à défaut, depuis la
+[branche main](https://raw.githubusercontent.com/LucasGIRARD/MethodAZ/main/VPS/install/config/vps.env.example),
+puis lancer :
 
 ```bash
-cp install/config/vps.env.example install/config/vps.env
-nano install/config/vps.env
 sh install/scripts/generate-secrets.sh
 sudo sh install/scripts/vps-install.sh --phase all
 ```

@@ -59,8 +59,8 @@ tar -xzf configuration-installateur.tar.gz \
 cat /root/configuration-restauree/source-version.txt
 ```
 
-Télécharger le bundle `VPS` au commit indiqué dans `source-version.txt`, puis
-restaurer sa configuration :
+Télécharger le bundle `VPS` correspondant aux champs `source_type` et `ref`
+indiqués dans `source-version.txt`, puis restaurer sa configuration :
 
 ```bash
 install -m 0600 /root/configuration-restauree/config/vps.env \

@@ -697,6 +697,88 @@ EOF
   chmod 0600 "$target" 2>/dev/null || true
 }
 
+wait_for_linkwarden() {
+  attempts=60
+  while [ "$attempts" -gt 0 ]; do
+    if curl -fsS -o /dev/null http://127.0.0.1:3001/; then
+      return 0
+    fi
+    attempts=$((attempts - 1))
+    sleep 2
+  done
+
+  return 1
+}
+
+bootstrap_linkwarden_user() {
+  [ "${LINKWARDEN_DISABLE_REGISTRATION:-false}" = true ] || return 0
+  [ -n "${LINKWARDEN_BOOTSTRAP_USER:-}" ] || return 0
+
+  : "${LINKWARDEN_BOOTSTRAP_PASSWORD:?LINKWARDEN_BOOTSTRAP_PASSWORD manquant}"
+  command -v jq >/dev/null 2>&1 || die "jq est requis pour créer le compte Linkwarden"
+  case "$LINKWARDEN_BOOTSTRAP_USER" in
+    *[!a-z0-9_-]*)
+      die "LINKWARDEN_BOOTSTRAP_USER doit contenir seulement a-z, 0-9, _ ou -"
+      ;;
+  esac
+  if [ "${#LINKWARDEN_BOOTSTRAP_USER}" -lt 3 ] \
+    || [ "${#LINKWARDEN_BOOTSTRAP_USER}" -gt 50 ]; then
+    die "LINKWARDEN_BOOTSTRAP_USER doit contenir entre 3 et 50 caractères"
+  fi
+  if [ "${#LINKWARDEN_BOOTSTRAP_PASSWORD}" -lt 8 ]; then
+    die "LINKWARDEN_BOOTSTRAP_PASSWORD doit contenir au moins 8 caractères"
+  fi
+
+  log "Compte initial Linkwarden"
+
+  final_disable_registration=$LINKWARDEN_DISABLE_REGISTRATION
+  LINKWARDEN_DISABLE_REGISTRATION=false
+  write_service_env linkwarden
+  LINKWARDEN_DISABLE_REGISTRATION=$final_disable_registration
+
+  /usr/local/sbin/vps-image-lock linkwarden
+  /usr/local/sbin/vps-compose linkwarden up -d
+  wait_for_linkwarden \
+    || die "Linkwarden ne répond pas sur http://127.0.0.1:3001"
+
+  response_file=$(mktemp)
+  status=$(
+    jq -n \
+      --arg username "$LINKWARDEN_BOOTSTRAP_USER" \
+      --arg name "${LINKWARDEN_BOOTSTRAP_NAME:-$LINKWARDEN_BOOTSTRAP_USER}" \
+      --arg password "$LINKWARDEN_BOOTSTRAP_PASSWORD" \
+      '{
+        username: $username,
+        name: $name,
+        password: $password,
+        invite: false,
+        acceptPromotionalEmails: false
+      }' \
+      | curl -sS -o "$response_file" -w '%{http_code}' \
+          -H 'Content-Type: application/json' \
+          --data-binary @- \
+          http://127.0.0.1:3001/api/v1/users
+  )
+
+  case "$status:$(cat "$response_file")" in
+    201:*)
+      echo "Compte Linkwarden créé : $LINKWARDEN_BOOTSTRAP_USER"
+      ;;
+    400:*"Email or Username already exists"*)
+      echo "Compte Linkwarden déjà présent : $LINKWARDEN_BOOTSTRAP_USER"
+      ;;
+    *)
+      cat "$response_file" >&2
+      rm -f "$response_file"
+      die "création du compte Linkwarden impossible, statut HTTP $status"
+      ;;
+  esac
+  rm -f "$response_file"
+
+  write_service_env linkwarden
+  /usr/local/sbin/vps-compose linkwarden up -d
+}
+
 install_services() {
   log "Projets Docker applicatifs"
   if [ "${INSTALL_DATABASES:-true}" = true ] \
@@ -717,6 +799,9 @@ install_services() {
     write_service_env "$service"
     chown root:root "/opt/selfhosted/$service"
     chown root:root "/opt/selfhosted/$service/docker-compose.yml"
+    if [ "$service" = linkwarden ]; then
+      bootstrap_linkwarden_user
+    fi
     if [ "${AUTO_START_SERVICES:-false}" = true ]; then
       /usr/local/sbin/vps-image-lock "$service"
       /usr/local/sbin/vps-compose "$service" up -d

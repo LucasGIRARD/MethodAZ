@@ -19,10 +19,14 @@ keys/sftp.pub        Clé publique SFTP, exclue de Git
 
 ## Préparation
 
-```bash
-cp install/config/vps.env.example install/config/vps.env
-nano install/config/vps.env
+Créer `install/config/vps.env` depuis le modèle :
 
+- [vps.env.example, dernière release](https://github.com/LucasGIRARD/MethodAZ/releases/latest/download/vps.env.example)
+- [vps.env.example, branche main](https://raw.githubusercontent.com/LucasGIRARD/MethodAZ/main/VPS/install/config/vps.env.example)
+
+Puis générer les secrets :
+
+```bash
 sh install/scripts/generate-secrets.sh
 chmod 0600 install/config/secrets.env
 ```

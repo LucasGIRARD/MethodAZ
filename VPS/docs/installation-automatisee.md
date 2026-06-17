@@ -23,33 +23,38 @@ ne démarre pas les applications par défaut.
 Créer les clés :
 
 ```bash
-ssh-keygen -t ed25519 -a 100 -f ~/.ssh/vps-admin
-ssh-keygen -t ed25519 -a 100 -f ~/.ssh/vps-sftp
+ssh-keygen -t ed25519 -a 100 -f "$HOME/.ssh/vps-admin"
+ssh-keygen -t ed25519 -a 100 -f "$HOME/.ssh/vps-sftp"
 ```
 
-Copier uniquement les clés publiques sur le serveur :
+Copier uniquement les clés publiques sur le serveur, puis ouvrir une session
+root temporaire :
 
 ```bash
-scp ~/.ssh/vps-admin.pub ~/.ssh/vps-sftp.pub \
-  root@IP_DU_SERVEUR:/root/
+scp "$HOME/.ssh/vps-admin.pub" "$HOME/.ssh/vps-sftp.pub" root@IP_DU_SERVEUR:/root/
 ssh root@IP_DU_SERVEUR
 ```
 
+`scp` transfère les deux fichiers `.pub` depuis le poste client vers le
+répertoire `/root/` du VPS. Les clés privées sans extension `.pub` ne doivent
+jamais être copiées sur le serveur. La connexion `ssh root@IP_DU_SERVEUR` sert
+ensuite à continuer l'installation depuis le VPS ; les fichiers publics seront
+placés plus bas dans `install/keys/admin.pub` et `install/keys/sftp.pub`.
+
 ## Télécharger le bundle sur le VPS
 
-Le dépôt complet MethodAZ ne doit pas être cloné. Choisir l'identifiant complet
-d'un commit validé, puis télécharger uniquement le bundle `VPS` :
+Le dépôt complet MethodAZ ne doit pas être cloné. Télécharger le petit script
+de récupération publié avec la dernière release, le lire, puis choisir la
+version du bundle `VPS` à installer :
 
 ```bash
-METHODAZ_REF=IDENTIFIANT_COMPLET_DU_COMMIT
-
 curl -fL \
-  "https://raw.githubusercontent.com/LucasGIRARD/MethodAZ/$METHODAZ_REF/VPS/install/scripts/fetch-vps.sh" \
+  "https://github.com/LucasGIRARD/MethodAZ/releases/latest/download/fetch-vps.sh" \
   -o /root/fetch-vps.sh
 
 less /root/fetch-vps.sh
 chmod 700 /root/fetch-vps.sh
-/root/fetch-vps.sh "$METHODAZ_REF" /root/vps-setup
+/root/fetch-vps.sh --select-version /root/vps-setup
 cd /root/vps-setup
 
 install -m 0644 /root/vps-admin.pub install/keys/admin.pub
@@ -57,17 +62,22 @@ install -m 0644 /root/vps-sftp.pub install/keys/sftp.pub
 cat install/source-version.txt
 ```
 
+Le mode `--select-version` affiche les releases disponibles et télécharge le
+tag choisi. Pour installer directement la dernière release publiée, utiliser
+`/root/fetch-vps.sh --latest /root/vps-setup`.
+
 La procédure détaillée pour Windows, Linux et macOS se trouve dans
 [Téléchargement depuis GitHub](telechargement-github.md).
 
 ## Configuration publique
 
-Créer le fichier local :
+Créer `install/config/vps.env` à partir du modèle de configuration publique :
 
-```bash
-cp install/config/vps.env.example install/config/vps.env
-nano install/config/vps.env
-```
+- [vps.env.example, dernière release](https://github.com/LucasGIRARD/MethodAZ/releases/latest/download/vps.env.example)
+- [vps.env.example, branche main](https://raw.githubusercontent.com/LucasGIRARD/MethodAZ/main/VPS/install/config/vps.env.example)
+
+Le même modèle est présent dans le bundle téléchargé sous
+`install/config/vps.env.example`.
 
 Renseigner au minimum :
 
@@ -77,10 +87,18 @@ SSH_PORT=PORT_REEL
 BASE_DOMAIN=example.fr
 ADMIN_EMAIL=contact@example.fr
 SERVICES=linkwarden,davis,freshrss,ttrss,web
+LINKWARDEN_DISABLE_REGISTRATION=true
+LINKWARDEN_BOOTSTRAP_USER=lucas
+LINKWARDEN_BOOTSTRAP_NAME=Lucas
 ```
 
 Le vrai port SSH reste uniquement dans ce fichier exclu de Git. Dans la
 documentation publique, il continue d'être représenté par `**000`.
+
+Après une première installation, ce fichier est conservé dans
+`/opt/vps-install/config/vps.env`. Pour revenir dessus, modifier cette copie
+puis relancer uniquement la phase concernée, comme décrit dans
+[Reprise après erreur](#reprise-apres-erreur).
 
 ## Secrets
 
@@ -94,6 +112,16 @@ sudo chmod 0600 install/config/secrets.env
 
 Le fichier contient les mots de passe applicatifs, les secrets de session et
 le hash du mot de passe système initial. Il est exclu de Git.
+
+Le modèle de référence est consultable ici, mais ne doit pas être utilisé tel
+quel en production :
+
+- [secrets.env.example, dernière release](https://github.com/LucasGIRARD/MethodAZ/releases/latest/download/secrets.env.example)
+- [secrets.env.example, branche main](https://raw.githubusercontent.com/LucasGIRARD/MethodAZ/main/VPS/install/config/secrets.env.example)
+
+Si `LINKWARDEN_BOOTSTRAP_USER` est renseigné, conserver aussi
+`LINKWARDEN_BOOTSTRAP_PASSWORD` dans ce fichier. Ce mot de passe sert à créer
+le premier compte Linkwarden quand les inscriptions publiques sont fermées.
 
 Afficher uniquement le mot de passe administrateur initial si nécessaire :
 

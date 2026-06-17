@@ -53,7 +53,7 @@
             "state": {
               "type": "search",
               "state": {
-                "query": "freshrss",
+                "query": "floccus",
                 "matchingCase": false,
                 "explainSearch": false,
                 "collapseAll": false,
@@ -231,7 +231,7 @@
       "css-editor:Open CSS editor quick switcher": false
     }
   },
-  "active": "a17f1dfb26e1fa02",
+  "active": "132004aed737adaa",
   "lastOpenFiles": [
     "VPS/docs/02-docker.md",
     "VPS/docs/archive/legacy/1-maj-auto.md",

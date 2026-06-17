@@ -17,8 +17,8 @@ et ne nécessite aucun port FTP supplémentaire.
 Créer une clé distincte pour chaque usage :
 
 ```bash
-ssh-keygen -t ed25519 -a 100 -f ~/.ssh/vps-admin
-ssh-keygen -t ed25519 -a 100 -f ~/.ssh/vps-sftp
+ssh-keygen -t ed25519 -a 100 -f "$HOME/.ssh/vps-admin"
+ssh-keygen -t ed25519 -a 100 -f "$HOME/.ssh/vps-sftp"
 ```
 
 Copier uniquement les fichiers publics dans le répertoire d'installation :
