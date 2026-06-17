@@ -42,6 +42,10 @@ servent uniquement à récupérer le bundle `VPS` correspondant à la version
 choisie ; les deux fichiers `.env.example` servent de modèles lisibles avant
 installation.
 
+Le workflow GitHub Actions `Assets release VPS` attache ces fichiers lors de la
+publication d'une release. Pour compléter une release déjà publiée, le lancer
+manuellement avec `workflow_dispatch` et renseigner le tag concerné.
+
 ## Windows PowerShell
 
 Télécharger le script sans l'exécuter directement :
