@@ -44,6 +44,18 @@ for script in \
   sh -n "$script"
 done
 
+if ! command -v docker >/dev/null 2>&1; then
+  echo "Validation partielle : Docker est introuvable."
+  echo "Scripts vérifiés. Les projets Compose seront vérifiés après la phase Docker."
+  exit 0
+fi
+
+if ! docker compose version >/dev/null 2>&1; then
+  echo "Validation partielle : Docker Compose est indisponible."
+  echo "Scripts vérifiés. Les projets Compose seront vérifiés après la phase Docker."
+  exit 0
+fi
+
 compose_check() {
   file=$1
   shift

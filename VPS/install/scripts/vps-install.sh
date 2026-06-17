@@ -83,6 +83,10 @@ load_configuration() {
     *) die "le fichier $SECRETS doit avoir le mode 0600 ou 0400" ;;
   esac
 
+  if grep -Eq '^ADMIN_PASSWORD_HASH=\$' "$SECRETS"; then
+    die "ADMIN_PASSWORD_HASH doit être entre quotes simples dans $SECRETS, par exemple ADMIN_PASSWORD_HASH='\$6\$...'"
+  fi
+
   set -a
   # shellcheck disable=SC1090
   . "$CONFIG"

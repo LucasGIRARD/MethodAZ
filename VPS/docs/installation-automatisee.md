@@ -131,6 +131,8 @@ sudo sed -n 's/^ADMIN_INITIAL_PASSWORD=//p' install/config/secrets.env
 
 Après validation de `sudo`, cette valeur en clair peut être supprimée du
 fichier ; `ADMIN_PASSWORD_HASH` doit être conservé pour les réapplications.
+Si `ADMIN_PASSWORD_HASH` est modifié à la main avec un hash `openssl passwd -6`,
+le placer entre quotes simples, par exemple `ADMIN_PASSWORD_HASH='$6$...'`.
 
 ## Valider le bundle
 
@@ -139,7 +141,9 @@ sh install/scripts/validate-bundle.sh
 ```
 
 Cette commande vérifie la syntaxe des scripts et de tous les projets Compose
-sans démarrer de conteneur.
+sans démarrer de conteneur. Si Docker n'est pas encore installé, elle vérifie
+seulement les scripts et indique que la validation Compose devra être rejouée
+après la phase Docker.
 
 ## Lancer l'installation
 
