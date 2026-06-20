@@ -1,4 +1,4 @@
-# VPS auto-hébergé
+﻿# VPS auto-hébergé
 
 Documentation d'installation et de maintenance d'un VPS Debian 13 « Trixie »
 avec Docker, Nginx, Certbot, rapports de contrôle et services auto-hébergés.
@@ -7,27 +7,27 @@ avec Docker, Nginx, Certbot, rapports de contrôle et services auto-hébergés.
 
 Lire et appliquer les documents dans cet ordre :
 
-1. [Contexte et hypothèses](docs/00-contexte-et-hypotheses.md)
-2. [Téléchargement depuis GitHub](docs/telechargement-github.md)
-3. [Test local avec Docker Compose](docs/test-local-docker.md)
-4. [Installation automatisée](docs/installation-automatisee.md)
-5. [Base VPS Debian](docs/01-vps-base.md)
-6. [Docker](docs/02-docker.md)
-7. [Bases de données partagées](docs/bases-donnees-partagees.md)
-8. [Services Docker](docs/03-services-docker.md)
-9. [Nginx et Certbot dans Docker](docs/04-nginx-certbot.md)
-10. [Supervision et rapports](docs/05-supervision-rapports.md)
-11. [Dashboard d'observabilité](docs/05-dashboard-observabilite.md)
-12. [Maintenance et mises à jour](docs/06-maintenance-mises-a-jour.md)
-13. [Commandes utiles](docs/07-commandes-utiles.md)
-14. [Annexe : référentiel des ports réseau](docs/08-annexe-ports.md)
-15. [Protection contre les scans et limitation Nginx](docs/09-protection-scans-rate-limit.md)
-16. [Journalisation, rotation et rétention](docs/10-journalisation-rotation.md)
-17. [Sécurité des images Docker](docs/securite-images-docker.md)
-18. [Dimensionnement du VPS IONOS](docs/dimensionnement-vps-ionos.md)
-19. [Restauration complète sur un VPS vierge](docs/procedures/restauration-vps-vierge.md)
-20. [Retour arrière après une mise à jour](docs/procedures/retour-arriere-mise-a-jour.md)
-21. [Ajouter une application](docs/procedures/ajout-application.md)
+1. [Contexte et hypothèses](docs/01-contexte-et-hypotheses.md)
+2. [Téléchargement depuis GitHub](docs/02-telechargement-github.md)
+3. [Test local avec Docker Compose](docs/03-test-local-docker.md)
+4. [Installation automatisée](docs/04-installation-automatisee.md)
+5. [Base VPS Debian](docs/05-vps-base.md)
+6. [Docker](docs/06-docker.md)
+7. [Bases de données partagées](docs/07-bases-donnees-partagees.md)
+8. [Services Docker](docs/08-services-docker.md)
+9. [Nginx et Certbot dans Docker](docs/09-nginx-certbot.md)
+10. [Supervision et rapports](docs/10-supervision-rapports.md)
+11. [Dashboard d'observabilité](docs/11-dashboard-observabilite.md)
+12. [Maintenance et mises à jour](docs/12-maintenance-mises-a-jour.md)
+13. [Commandes utiles](docs/13-commandes-utiles.md)
+14. [Annexe : référentiel des ports réseau](docs/14-annexe-ports.md)
+15. [Protection contre les scans et limitation Nginx](docs/15-protection-scans-rate-limit.md)
+16. [Journalisation, rotation et rétention](docs/16-journalisation-rotation.md)
+17. [Sécurité des images Docker](docs/17-securite-images-docker.md)
+18. [Dimensionnement du VPS IONOS](docs/18-dimensionnement-vps-ionos.md)
+19. [Restauration complète sur un VPS vierge](docs/procedures/19-restauration-vps-vierge.md)
+20. [Retour arrière après une mise à jour](docs/procedures/20-retour-arriere-mise-a-jour.md)
+21. [Ajouter une application](docs/procedures/21-ajout-application.md)
 
 ## Décisions actives
 
@@ -64,7 +64,7 @@ Lire et appliquer les documents dans cet ordre :
 ## Installation rapide
 
 Télécharger d'abord uniquement le bundle `VPS` en suivant
-[Téléchargement depuis GitHub](docs/telechargement-github.md).
+[Téléchargement depuis GitHub](docs/02-telechargement-github.md).
 
 Créer ensuite `install/config/vps.env` depuis le modèle
 [vps.env.example de la dernière release](https://github.com/LucasGIRARD/MethodAZ/releases/latest/download/vps.env.example)

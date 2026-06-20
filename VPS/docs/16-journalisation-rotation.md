@@ -1,4 +1,4 @@
-# Journalisation, rotation et rétention
+﻿# Journalisation, rotation et rétention
 
 ## Objectif
 
@@ -15,7 +15,7 @@ Empêcher tout journal persistant de croître sans limite. Cette politique couvr
 - les journaux standards gérés par les paquets Debian.
 
 Les sauvegardes applicatives ne sont pas des journaux. Leur rétention est gérée
-séparément dans [Maintenance et mises à jour](06-maintenance-mises-a-jour.md).
+séparément dans [Maintenance et mises à jour](12-maintenance-mises-a-jour.md).
 
 ## Règle pour tout nouveau service
 
@@ -108,7 +108,7 @@ journald et suivent donc cette rétention.
 Grafana, Prometheus, Node Exporter, cAdvisor, Loki et Alloy sont des
 conteneurs. Leurs messages écrits dans stdout/stderr rejoignent journald. La
 base de métriques Prometheus et l'index Loki ont leurs propres rétentions
-bornées dans [Dashboard d'observabilité](05-dashboard-observabilite.md).
+bornées dans [Dashboard d'observabilité](11-dashboard-observabilite.md).
 
 ## Journaux Fail2ban
 
@@ -144,7 +144,7 @@ l'historique ancien des bannissements.
 ## Journaux Docker
 
 Docker utilise par défaut le pilote `json-file`, sans rotation. La procédure
-[Docker](02-docker.md) configure donc le pilote `journald` :
+[Docker](06-docker.md) configure donc le pilote `journald` :
 
 ```json
 {

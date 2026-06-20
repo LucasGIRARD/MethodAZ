@@ -1,4 +1,4 @@
-# Installation automatisée
+﻿# Installation automatisée
 
 ## Périmètre
 
@@ -69,7 +69,7 @@ tag choisi. Pour installer directement la dernière release publiée, utiliser
 `/root/fetch-vps.sh --latest /root/vps-setup`.
 
 La procédure détaillée pour Windows, Linux et macOS se trouve dans
-[Téléchargement depuis GitHub](telechargement-github.md).
+[Téléchargement depuis GitHub](02-telechargement-github.md).
 
 ## Configuration publique
 
@@ -246,7 +246,7 @@ sudo vps-compose linkwarden config --quiet
 sudo vps-compose linkwarden up -d
 ```
 
-Suivre ensuite sa fiche dans [Services Docker](03-services-docker.md).
+Suivre ensuite sa fiche dans [Services Docker](08-services-docker.md).
 
 ## Reprise après erreur
 

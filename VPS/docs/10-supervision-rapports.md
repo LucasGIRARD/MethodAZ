@@ -1,4 +1,4 @@
-# Supervision et rapports
+﻿# Supervision et rapports
 
 ## Objectif
 
@@ -53,7 +53,7 @@ surface d'attaque.
 
 La configuration complète, le dashboard provisionné et le flag des journaux
 sont décrits dans
-[Dashboard d'observabilité](05-dashboard-observabilite.md). Les extraits
+[Dashboard d'observabilité](11-dashboard-observabilite.md). Les extraits
 Compose ci-dessous constituent uniquement le socle minimal historique. Pour le
 déploiement retenu, utiliser les fichiers sous `install/monitoring` et ne pas
 fusionner manuellement les deux fichiers Compose.
@@ -371,7 +371,7 @@ server {
 ```
 
 Le domaine `monitoring.example.fr` est déjà inclus dans le certificat SAN
-obtenu dans [Nginx et Certbot dans Docker](04-nginx-certbot.md). Vérifier et
+obtenu dans [Nginx et Certbot dans Docker](09-nginx-certbot.md). Vérifier et
 recharger :
 
 ```bash
@@ -475,7 +475,7 @@ sudo chmod 0750 /var/log/server-checks /var/log/server-checks/docker-images
 ```
 
 Ces fichiers sont gérés par la politique
-[Journalisation, rotation et rétention](10-journalisation-rotation.md).
+[Journalisation, rotation et rétention](16-journalisation-rotation.md).
 
 ## Vérification du noyau et du redémarrage
 

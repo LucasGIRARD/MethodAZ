@@ -1,4 +1,4 @@
-# Pare-feu et Fail2ban
+﻿# Pare-feu et Fail2ban
 
 ## Politique
 
@@ -62,7 +62,7 @@ sudo journalctl -u fail2ban --since today
 ```
 
 Les limites Nginx et les nuances de détection sont détaillées dans
-[Protection contre les scans et limitation Nginx](../09-protection-scans-rate-limit.md).
+[Protection contre les scans et limitation Nginx](../15-protection-scans-rate-limit.md).
 
 ## Contrôle final
 

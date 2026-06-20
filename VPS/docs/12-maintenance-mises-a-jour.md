@@ -1,4 +1,4 @@
-# Maintenance et mises à jour
+﻿# Maintenance et mises à jour
 
 ## Objectif
 
@@ -49,7 +49,7 @@ le conteneur et son volume. Le résultat est écrit dans :
 
 Ce test vérifie les dumps SQL. La procédure complète sur un nouvel hôte reste
 nécessaire pour valider le système, TLS et le DNS :
-[Restauration complète sur un VPS vierge](procedures/restauration-vps-vierge.md).
+[Restauration complète sur un VPS vierge](procedures/19-restauration-vps-vierge.md).
 
 ## Copie externe chiffrée
 
@@ -280,7 +280,7 @@ sudo ss -tulpn
 ```
 
 Les procédures de retour arrière sont décrites dans
-[Retour arrière après une mise à jour](procedures/retour-arriere-mise-a-jour.md).
+[Retour arrière après une mise à jour](procedures/20-retour-arriere-mise-a-jour.md).
 
 ## Références
 

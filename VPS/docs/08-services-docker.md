@@ -1,4 +1,4 @@
-# Services Docker
+﻿# Services Docker
 
 ## Objectif
 
@@ -7,7 +7,7 @@ Déployer chaque application comme un projet Docker Compose indépendant sous
 chaque application sont dans `docs/services/`.
 
 L'instance PostgreSQL est mutualisée dans le projet `databases`, décrit dans
-[Bases de données partagées](bases-donnees-partagees.md).
+[Bases de données partagées](07-bases-donnees-partagees.md).
 
 ## Vue d'ensemble
 
@@ -24,7 +24,7 @@ Tous les projets suivent les
 [conventions Docker communes](services/00-conventions.md).
 
 Ils peuvent être exécutés sans installation Debian avec la procédure
-[Test local avec Docker Compose](test-local-docker.md).
+[Test local avec Docker Compose](03-test-local-docker.md).
 
 ## Organisation des fichiers
 
@@ -106,4 +106,4 @@ Une application absente de `SERVICES` ne doit pas écouter sur son port.
 Les applications ne sont jamais publiées directement. Nginx les joint sur
 leur port local, puis fournit HTTPS, les limites de débit et
 l'authentification éventuelle. Voir
-[Nginx et Certbot dans Docker](04-nginx-certbot.md).
+[Nginx et Certbot dans Docker](09-nginx-certbot.md).

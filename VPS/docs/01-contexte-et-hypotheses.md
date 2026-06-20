@@ -1,4 +1,4 @@
-# Contexte et hypothèses
+﻿# Contexte et hypothèses
 
 ## Objectif
 
@@ -91,7 +91,7 @@ docker ps
 ```
 
 La stratégie complète d'exposition est décrite dans
-[l'annexe des ports](08-annexe-ports.md).
+[l'annexe des ports](14-annexe-ports.md).
 
 ## Liste de contrôle
 

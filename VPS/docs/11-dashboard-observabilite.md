@@ -1,4 +1,4 @@
-# Dashboard d'observabilité
+﻿# Dashboard d'observabilité
 
 ## Objectif
 
@@ -13,7 +13,7 @@ Déployer un tableau de bord Grafana en lecture seule couvrant :
 La configuration prête à déployer se trouve dans
 [`install/monitoring`](../install/monitoring/README.md). Elle remplace les
 extraits Compose minimaux de
-[Supervision et rapports](05-supervision-rapports.md).
+[Supervision et rapports](10-supervision-rapports.md).
 
 ## Architecture
 
@@ -261,7 +261,7 @@ Les métriques locales sont rafraîchies toutes les 15 minutes par
 
 Grafana est sans formulaire de connexion et n'accorde que le rôle anonyme
 `Viewer`. Nginx doit donc conserver l'authentification HTTP décrite dans
-[Supervision et rapports](05-supervision-rapports.md).
+[Supervision et rapports](10-supervision-rapports.md).
 
 Node Exporter monte la racine en lecture seule. Alloy, lorsqu'il est activé,
 lit le journal et les fichiers Nginx en lecture seule.

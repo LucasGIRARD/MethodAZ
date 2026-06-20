@@ -1,4 +1,4 @@
-# Téléchargement depuis GitHub
+﻿# Téléchargement depuis GitHub
 
 ## Objectif
 
@@ -128,7 +128,7 @@ cloner le dépôt complet MethodAZ.
 
 Il faut ensuite créer les fichiers locaux de configuration et lancer la
 procédure décrite dans
-[Installation automatisée](installation-automatisee.md).
+[Installation automatisée](04-installation-automatisee.md).
 
 ## Mise à jour du bundle
 

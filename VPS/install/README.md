@@ -1,7 +1,7 @@
-# Installation
+﻿# Installation
 
 Le bundle peut être téléchargé sans cloner le dépôt MethodAZ. Voir
-`docs/telechargement-github.md` ou les scripts :
+`docs/02-telechargement-github.md` ou les scripts :
 
 ```text
 install/scripts/fetch-vps.sh
@@ -69,7 +69,7 @@ sh install/scripts/local-compose.sh validate
 sh install/scripts/local-compose.sh up linkwarden
 ```
 
-Voir `docs/test-local-docker.md`.
+Voir `docs/03-test-local-docker.md`.
 
 ## Installation
 
@@ -86,7 +86,7 @@ Le bundle est ensuite conservé sous `/opt/vps-install` et accessible avec :
 sudo vps-install --help
 ```
 
-Voir `docs/installation-automatisee.md` pour l'ordre complet et les tests SSH
+Voir `docs/04-installation-automatisee.md` pour l'ordre complet et les tests SSH
 avant fermeture du port 22 temporaire.
 
 La maintenance est installée sous forme de timers systemd :

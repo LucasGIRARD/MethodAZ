@@ -1,4 +1,4 @@
-# Base VPS Debian
+﻿# Base VPS Debian
 
 ## Objectif
 
@@ -26,7 +26,7 @@ sudo sh install/scripts/vps-install.sh --phase all
 ```
 
 La procédure complète est décrite dans
-[Installation automatisée](installation-automatisee.md).
+[Installation automatisée](04-installation-automatisee.md).
 
 ## État attendu
 

@@ -1,4 +1,4 @@
-# Docker
+﻿# Docker
 
 ## Objectif
 
@@ -44,7 +44,7 @@ Avant de créer les conteneurs, envoyer leurs sorties standard dans
 `journald`. Cette stratégie permet à Grafana Alloy de lire les journaux sans
 monter directement le socket Docker. La rotation est assurée par les limites
 globales de journald décrites dans
-[Journalisation, rotation et rétention](10-journalisation-rotation.md).
+[Journalisation, rotation et rétention](16-journalisation-rotation.md).
 
 Activer également l'endpoint Prometheus du démon Docker sur l'adresse locale.
 Il ne doit jamais écouter sur une adresse publique.
@@ -176,7 +176,7 @@ docker inspect --format '{{.Name}} {{.HostConfig.LogConfig.Type}} {{json .HostCo
 ```
 
 La politique complète est décrite dans
-[Journalisation, rotation et rétention](10-journalisation-rotation.md).
+[Journalisation, rotation et rétention](16-journalisation-rotation.md).
 
 ## Verrouillage des images
 
@@ -192,4 +192,4 @@ Le fichier `docker-compose.lock.yml` créé dans le projet est chargé
 automatiquement par `vps-compose`, `vps-gateway` et `vps-monitoring`.
 
 La procédure complète et l'audit des CVE sont décrits dans
-[Sécurité des images Docker](securite-images-docker.md).
+[Sécurité des images Docker](17-securite-images-docker.md).
