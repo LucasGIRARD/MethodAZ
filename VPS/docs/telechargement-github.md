@@ -101,8 +101,9 @@ ssh root@IP_DU_SERVEUR
 ```
 
 `scp` copie les deux fichiers `.pub` dans `/root/` sur le VPS. Les clés privées
-correspondantes restent sur le poste client. La session SSH ouverte juste après
-sert à exécuter les commandes suivantes directement sur le serveur.
+correspondantes restent sur le poste client. La session SSH root ouverte juste
+après sert uniquement à amorcer l'installation ; les nouvelles connexions SSH
+root seront bloquées dès la phase SSH.
 
 Sur le VPS :
 
@@ -120,6 +121,10 @@ install -m 0644 /root/vps-admin.pub install/keys/admin.pub
 install -m 0644 /root/vps-sftp.pub install/keys/sftp.pub
 cat install/source-version.txt
 ```
+
+Le script `fetch-vps.sh` est publié comme asset de release. Il télécharge
+uniquement le contenu nécessaire du dossier `VPS` pour la version choisie, sans
+cloner le dépôt complet MethodAZ.
 
 Il faut ensuite créer les fichiers locaux de configuration et lancer la
 procédure décrite dans

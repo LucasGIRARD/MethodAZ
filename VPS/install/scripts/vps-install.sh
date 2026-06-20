@@ -258,14 +258,9 @@ write_ssh_configuration() {
   log "Configuration SSH renforcée"
   install -d -m 0755 /etc/ssh/sshd_config.d /etc/ssh/authorized_keys
 
-  root_login=no
-  if [ "${KEEP_SSH_PORT_22:-true}" = true ] && [ "$FINALIZE_SSH" != true ]; then
-    root_login=prohibit-password
-  fi
-
   cat > /etc/ssh/sshd_config.d/20-vps-hardening.conf <<EOF
 Port $SSH_PORT
-PermitRootLogin $root_login
+PermitRootLogin no
 PasswordAuthentication no
 KbdInteractiveAuthentication no
 PubkeyAuthentication yes

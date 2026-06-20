@@ -77,9 +77,9 @@ sh install/scripts/generate-secrets.sh
 sudo sh install/scripts/vps-install.sh --phase all
 ```
 
-Le premier passage conserve temporairement le port SSH 22 avec root limité à
-l'authentification par clé. Après validation de SSH et SFTP sur le port réel,
-la finalisation désactive totalement la connexion root :
+Le premier passage crée le compte administrateur sudoer, bloque SSH pour root
+et conserve temporairement le port SSH 22 pour le compte administrateur. Après
+validation de SSH et SFTP sur le port réel, la finalisation ferme le port 22 :
 
 ```bash
 sudo vps-install --finalize-ssh

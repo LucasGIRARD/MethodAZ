@@ -48,9 +48,10 @@ ClientAliveCountMax 2
 ```
 
 Pendant le premier passage, un second fichier conserve temporairement le port
-22. Pendant cette courte phase, root reste récupérable uniquement par clé avec
-`PermitRootLogin prohibit-password`. La finalisation passe ensuite
-`PermitRootLogin` à `no`.
+22. Root est toutefois bloqué dès l'application de cette configuration :
+`PermitRootLogin no` reste actif. Le port 22 temporaire sert uniquement à
+garder un chemin d'accès au compte administrateur par clé pendant la validation
+du port privé.
 
 ## Isolation SFTP
 

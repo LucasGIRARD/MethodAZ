@@ -38,8 +38,10 @@ ssh root@IP_DU_SERVEUR
 `scp` transfère les deux fichiers `.pub` depuis le poste client vers le
 répertoire `/root/` du VPS. Les clés privées sans extension `.pub` ne doivent
 jamais être copiées sur le serveur. La connexion `ssh root@IP_DU_SERVEUR` sert
-ensuite à continuer l'installation depuis le VPS ; les fichiers publics seront
-placés plus bas dans `install/keys/admin.pub` et `install/keys/sftp.pub`.
+uniquement à amorcer l'installation depuis le VPS ; l'installateur crée ensuite
+le compte administrateur sudoer et bloque les nouvelles connexions SSH root.
+Les fichiers publics seront placés plus bas dans `install/keys/admin.pub` et
+`install/keys/sftp.pub`.
 
 ## Télécharger le bundle sur le VPS
 
@@ -78,6 +80,12 @@ Créer `install/config/vps.env` à partir du modèle de configuration publique :
 
 Le même modèle est présent dans le bundle téléchargé sous
 `install/config/vps.env.example`.
+
+Deux méthodes sont possibles :
+
+- créer ou modifier `install/config/vps.env` directement sur le VPS ;
+- préparer `vps.env` sur le poste client, puis le déposer par SFTP ou SCP dans
+  `/root/vps-setup/install/config/vps.env`.
 
 Renseigner au minimum :
 
@@ -118,6 +126,15 @@ quel en production :
 
 - [secrets.env.example, dernière release](https://github.com/LucasGIRARD/MethodAZ/releases/latest/download/secrets.env.example)
 - [secrets.env.example, branche main](https://raw.githubusercontent.com/LucasGIRARD/MethodAZ/main/VPS/install/config/secrets.env.example)
+
+Le fichier peut aussi être préparé sur le poste client puis déposé par SFTP ou
+SCP dans `/root/vps-setup/install/config/secrets.env`. Dans ce cas, vérifier
+ensuite sur le VPS :
+
+```bash
+sudo chown root:root install/config/secrets.env
+sudo chmod 0600 install/config/secrets.env
+```
 
 Si `LINKWARDEN_BOOTSTRAP_USER` est renseigné, conserver aussi
 `LINKWARDEN_BOOTSTRAP_PASSWORD` dans ce fichier. Ce mot de passe sert à créer
