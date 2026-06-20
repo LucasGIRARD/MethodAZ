@@ -91,3 +91,8 @@ sudo ss -ltnp | grep -E ':(80|443)\b'
 ```
 
 Les ports `80` et `443` sont les seuls ports web publics.
+
+Pour l'hébergement web générique, `WEB_DOMAIN` route le domaine racine vers
+`/opt/selfhosted/web/html`. Les labels listés dans `WEB_SUBDOMAINS` sont ajoutés
+à Nginx et au certificat, puis routés par Apache vers un dossier du même nom,
+par exemple `www.example.fr` vers `/opt/selfhosted/web/html/www`.

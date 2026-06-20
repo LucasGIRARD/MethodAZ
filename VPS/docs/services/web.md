@@ -11,6 +11,39 @@
 - Port : `127.0.0.1:3006`
 - Domaine : `web.example.fr`
 
+## Domaines et sous-domaines
+
+`WEB_DOMAIN` sert le dossier racine :
+
+```bash
+WEB_DOMAIN=example.fr
+```
+
+Dans ce cas, `https://example.fr` pointe vers :
+
+```text
+/opt/selfhosted/web/html
+```
+
+`WEB_SUBDOMAINS` ajoute des sous-domaines explicites au même service web. Chaque
+label pointe vers un dossier du même nom :
+
+```bash
+WEB_SUBDOMAINS=www,blog,docs
+```
+
+Routage obtenu :
+
+```text
+https://www.example.fr   -> /opt/selfhosted/web/html/www
+https://blog.example.fr  -> /opt/selfhosted/web/html/blog
+https://docs.example.fr  -> /opt/selfhosted/web/html/docs
+```
+
+Les sous-domaines doivent aussi exister en DNS avant l'émission du certificat.
+Le mode Certbot HTTP actuel ne prend pas en charge un wildcard `*.example.fr` ;
+ajouter les sous-domaines voulus dans `WEB_SUBDOMAINS`.
+
 ## Premier démarrage
 
 ```bash
@@ -27,6 +60,9 @@ Déposer ensuite l'application dans :
 ```text
 /opt/selfhosted/web/html
 ```
+
+Pour un sous-domaine, déposer son contenu dans le dossier correspondant, par
+exemple `/opt/selfhosted/web/html/www` pour `www.example.fr`.
 
 ## Journaux
 

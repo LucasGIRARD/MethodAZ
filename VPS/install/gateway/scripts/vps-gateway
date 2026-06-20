@@ -34,6 +34,19 @@ start_http() {
 }
 
 issue_certificate() {
+  set -- \
+    -d "$LINKWARDEN_DOMAIN" \
+    -d "$DAVIS_DOMAIN" \
+    -d "$FRESHRSS_DOMAIN" \
+    -d "$TTRSS_DOMAIN" \
+    -d "$NEWSLETTER_DOMAIN"
+
+  for domain in ${WEB_SERVER_NAMES:-$WEB_DOMAIN}; do
+    set -- "$@" -d "$domain"
+  done
+
+  set -- "$@" -d "$MONITORING_DOMAIN"
+
   compose run --rm certbot certonly \
     --webroot \
     --webroot-path /var/www/certbot \
@@ -41,13 +54,7 @@ issue_certificate() {
     --agree-tos \
     --no-eff-email \
     --cert-name vps-services \
-    -d "$LINKWARDEN_DOMAIN" \
-    -d "$DAVIS_DOMAIN" \
-    -d "$FRESHRSS_DOMAIN" \
-    -d "$TTRSS_DOMAIN" \
-    -d "$NEWSLETTER_DOMAIN" \
-    -d "$WEB_DOMAIN" \
-    -d "$MONITORING_DOMAIN"
+    "$@"
 }
 
 enable_tls() {

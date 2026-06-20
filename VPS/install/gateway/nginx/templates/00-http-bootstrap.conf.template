@@ -23,7 +23,7 @@ server {
         ${FRESHRSS_DOMAIN}
         ${TTRSS_DOMAIN}
         ${NEWSLETTER_DOMAIN}
-        ${WEB_DOMAIN}
+        ${WEB_SERVER_NAMES}
         ${MONITORING_DOMAIN};
 
     location ^~ /.well-known/acme-challenge/ {

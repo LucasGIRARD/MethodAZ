@@ -161,6 +161,25 @@ compose_env_quote() {
   printf "'%s'" "$(printf '%s' "$1" | sed "s/'/\\\\'/g")"
 }
 
+web_server_names() {
+  names=$WEB_DOMAIN
+  old_ifs=$IFS
+  IFS=,
+  for subdomain in ${WEB_SUBDOMAINS:-}; do
+    IFS=$old_ifs
+    [ -n "$subdomain" ] || continue
+    case "$subdomain" in
+      *[!A-Za-z0-9-]*|-*|*-)
+        die "WEB_SUBDOMAINS contient un label invalide : $subdomain"
+        ;;
+    esac
+    names="$names $subdomain.$WEB_DOMAIN"
+    IFS=,
+  done
+  IFS=$old_ifs
+  printf '%s\n' "$names"
+}
+
 check_debian() {
   [ -r /etc/os-release ] || die "/etc/os-release absent"
   # shellcheck disable=SC1091
@@ -685,6 +704,7 @@ PHP_BASE_IMAGE=$PHP_BASE_IMAGE
 WEB_IMAGE_TAG=$WEB_IMAGE_TAG
 DATABASE_NETWORK_PREFIX=${DATABASE_NETWORK_PREFIX:-vps-db}
 WEB_DOMAIN=$WEB_DOMAIN
+WEB_SUBDOMAINS=${WEB_SUBDOMAINS:-}
 WEB_DB_PASSWORD=$(compose_env_quote "$WEB_DB_PASSWORD")
 WEB_MEMORY_LIMIT=$WEB_MEMORY_LIMIT
 EOF
@@ -834,6 +854,8 @@ FRESHRSS_DOMAIN=$FRESHRSS_DOMAIN
 TTRSS_DOMAIN=$TTRSS_DOMAIN
 NEWSLETTER_DOMAIN=$NEWSLETTER_DOMAIN
 WEB_DOMAIN=$WEB_DOMAIN
+WEB_SUBDOMAINS=${WEB_SUBDOMAINS:-}
+WEB_SERVER_NAMES=$(compose_env_quote "$(web_server_names)")
 MONITORING_DOMAIN=$MONITORING_DOMAIN
 NGINX_MEMORY_LIMIT=$NGINX_MEMORY_LIMIT
 CERTBOT_MEMORY_LIMIT=$CERTBOT_MEMORY_LIMIT

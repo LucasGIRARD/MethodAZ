@@ -13,6 +13,7 @@ services:
       TTRSS_DOMAIN: ${TTRSS_DOMAIN}
       NEWSLETTER_DOMAIN: ${NEWSLETTER_DOMAIN}
       WEB_DOMAIN: ${WEB_DOMAIN}
+      WEB_SERVER_NAMES: ${WEB_SERVER_NAMES}
       MONITORING_DOMAIN: ${MONITORING_DOMAIN}
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro

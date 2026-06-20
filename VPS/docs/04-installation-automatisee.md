@@ -98,6 +98,8 @@ SERVICES=linkwarden,davis,freshrss,ttrss,web
 LINKWARDEN_DISABLE_REGISTRATION=true
 LINKWARDEN_BOOTSTRAP_USER=lucas
 LINKWARDEN_BOOTSTRAP_NAME=Lucas
+WEB_DOMAIN=example.fr
+WEB_SUBDOMAINS=www
 ```
 
 Le vrai port SSH reste uniquement dans ce fichier exclu de Git. Dans la

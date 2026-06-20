@@ -20,6 +20,7 @@ services:
       DB_NAME: web
       DB_USER: web
       DB_PASSWORD_FILE: /run/secrets/web_db_password
+      WEB_DOMAIN: ${WEB_DOMAIN}
     secrets:
       - web_db_password
     networks:
