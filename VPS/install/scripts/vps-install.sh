@@ -180,6 +180,25 @@ web_server_names() {
   printf '%s\n' "$names"
 }
 
+create_web_subdomain_directories() {
+  install -d -m 0755 /opt/selfhosted/web/html
+
+  old_ifs=$IFS
+  IFS=,
+  for subdomain in ${WEB_SUBDOMAINS:-}; do
+    IFS=$old_ifs
+    [ -n "$subdomain" ] || continue
+    case "$subdomain" in
+      *[!A-Za-z0-9-]*|-*|*-)
+        die "WEB_SUBDOMAINS contient un label invalide : $subdomain"
+        ;;
+    esac
+    install -d -m 0755 "/opt/selfhosted/web/html/$subdomain"
+    IFS=,
+  done
+  IFS=$old_ifs
+}
+
 check_debian() {
   [ -r /etc/os-release ] || die "/etc/os-release absent"
   # shellcheck disable=SC1091
@@ -823,6 +842,9 @@ install_services() {
       prepare_kill_newsletter_source
     fi
     write_service_env "$service"
+    if [ "$service" = web ]; then
+      create_web_subdomain_directories
+    fi
     chown root:root "/opt/selfhosted/$service"
     chown root:root "/opt/selfhosted/$service/docker-compose.yml"
     if [ "$service" = linkwarden ]; then

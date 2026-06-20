@@ -44,6 +44,45 @@ Les sous-domaines doivent aussi exister en DNS avant l'émission du certificat.
 Le mode Certbot HTTP actuel ne prend pas en charge un wildcard `*.example.fr` ;
 ajouter les sous-domaines voulus dans `WEB_SUBDOMAINS`.
 
+## Ajouter un sous-domaine après installation
+
+1. Créer l'entrée DNS du nouveau sous-domaine vers le VPS.
+2. Modifier la configuration canonique :
+
+```bash
+sudo nano /opt/vps-install/config/vps.env
+```
+
+Exemple :
+
+```bash
+WEB_DOMAIN=example.fr
+WEB_SUBDOMAINS=www,blog
+```
+
+3. Réappliquer le service web. Cette phase met à jour la configuration Apache
+   et crée automatiquement les dossiers déclarés dans `WEB_SUBDOMAINS` :
+
+```bash
+sudo vps-install --phase services
+sudo vps-compose web up -d --build
+```
+
+4. Réappliquer le gateway, étendre le certificat puis recharger TLS :
+
+```bash
+sudo vps-install --phase gateway
+sudo vps-gateway issue-certificate
+sudo vps-gateway enable-tls
+```
+
+Pour `WEB_SUBDOMAINS=www,blog`, les dossiers créés sont :
+
+```text
+/opt/selfhosted/web/html/www
+/opt/selfhosted/web/html/blog
+```
+
 ## Premier démarrage
 
 ```bash

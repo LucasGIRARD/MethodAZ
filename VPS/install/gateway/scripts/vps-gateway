@@ -54,6 +54,7 @@ issue_certificate() {
     --agree-tos \
     --no-eff-email \
     --cert-name vps-services \
+    --expand \
     "$@"
 }
 
