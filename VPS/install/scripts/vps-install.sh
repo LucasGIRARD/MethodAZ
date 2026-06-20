@@ -314,7 +314,12 @@ EOF
   fi
 
   sshd -t
-  systemctl reload ssh
+  if systemctl cat ssh.socket >/dev/null 2>&1; then
+    # La socket systemd peut conserver une écoute sur 22 hors sshd_config.
+    systemctl disable --now ssh.socket >/dev/null 2>&1 || true
+  fi
+  systemctl enable ssh >/dev/null 2>&1 || true
+  systemctl restart ssh
 }
 
 write_firewall() {

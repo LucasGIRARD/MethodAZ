@@ -128,7 +128,14 @@ valide `sshd`, recharge SSH et régénère le pare-feu.
 sudo sshd -t
 sudo sshd -T | grep -E '^(port|permitrootlogin|passwordauthentication)'
 sudo ss -ltnp | grep sshd
+sudo systemctl is-active ssh.socket || true
 ```
+
+Si `22` apparaît encore avant la finalisation, c'est normal :
+`KEEP_SSH_PORT_22=true` conserve ce port temporairement. Le port privé doit
+toutefois apparaître aussi dans `sshd -T` et `ss -ltnp`. Si le port privé
+écoute localement mais reste inaccessible depuis le poste client, vérifier le
+pare-feu du fournisseur VPS en plus des règles `iptables`.
 
 ## Références
 
