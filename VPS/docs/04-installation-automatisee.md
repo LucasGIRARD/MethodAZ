@@ -108,7 +108,7 @@ SFTP_START_DIRECTORY=/html
 SFTP_UMASK=0022
 BASE_DOMAIN=example.fr
 ADMIN_EMAIL=contact@example.fr
-SERVICES=linkwarden,davis,freshrss,ttrss,web
+SERVICES=all
 LINKWARDEN_DISABLE_REGISTRATION=true
 LINKWARDEN_BOOTSTRAP_USER=lucas
 LINKWARDEN_BOOTSTRAP_NAME=Lucas
@@ -312,19 +312,11 @@ sudo vps-compose databases ps
 sudo vps-compose databases exec -T postgres pg_isready -U postgres
 ```
 
-Contrôler les stacks applicatifs déclarés dans `SERVICES` :
+Contrôler tous les projets Compose déjà installés :
 
 ```bash
-services="$(sudo sed -n 's/^SERVICES=//p' /opt/vps-install/config/vps.env | tail -n1 | tr ',' ' ')"
-
-for service in $services; do
-  if [ ! -f "/opt/selfhosted/$service/docker-compose.yml" ]; then
-    echo "Service non déployé : $service"
-    continue
-  fi
-  sudo vps-compose "$service" config --quiet
-  sudo vps-compose "$service" ps
-done
+sudo vps-compose all config --quiet
+sudo vps-compose all ps
 ```
 
 Contrôler le reverse proxy et les certificats :
@@ -344,9 +336,9 @@ curl -I https://linkwarden.example.fr
 curl -I https://www.example.fr
 ```
 
-Remplacer les domaines d'exemple par les domaines réels. Si un service n'est
-pas dans `SERVICES`, ignorer sa commande `vps-compose`. Si un service est dans
-`SERVICES` mais apparaît comme `Service non déployé`, rejouer
+Remplacer les domaines d'exemple par les domaines réels. En mode `all`,
+`vps-compose` affiche `Projet ignoré, fichier Compose absent` pour les stacks
+non installés. Si le stack attendu est dans `SERVICES`, rejouer
 `sudo vps-install --phase services`.
 
 Si Docker indique `Projet Compose absent : /opt/selfhosted/web`, vérifier que

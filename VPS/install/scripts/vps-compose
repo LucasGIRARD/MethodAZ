@@ -1,34 +1,92 @@
 #!/bin/sh
 set -eu
 
+STACK_ROOT=${STACK_ROOT:-/opt/selfhosted}
+SERVICES="databases linkwarden davis freshrss ttrss kill-newsletter web gateway monitoring"
+SERVICES_REVERSED="monitoring gateway web kill-newsletter ttrss freshrss davis linkwarden databases"
+
+usage() {
+  echo "Usage : vps-compose {SERVICE|all} COMMANDE [ARGUMENTS...]" >&2
+  echo "Exemples :" >&2
+  echo "  vps-compose freshrss up -d" >&2
+  echo "  vps-compose all ps" >&2
+}
+
 if [ "$#" -lt 2 ]; then
-  echo "Usage : vps-compose SERVICE COMMANDE [ARGUMENTS...]" >&2
-  echo "Exemple : vps-compose freshrss up -d" >&2
+  usage
   exit 2
 fi
 
 service=$1
 shift
-stack="/opt/selfhosted/$service"
+
+is_known_service() {
+  case "$1" in
+    databases|monitoring|linkwarden|davis|freshrss|ttrss|kill-newsletter|web|gateway)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+run_compose() {
+  current_service=$1
+  missing_mode=$2
+  shift 2
+
+  stack="$STACK_ROOT/$current_service"
+  if [ ! -f "$stack/docker-compose.yml" ]; then
+    if [ "$missing_mode" = ignore ]; then
+      echo "Projet ignoré, fichier Compose absent : $stack" >&2
+      return 0
+    fi
+    echo "Projet Compose absent : $stack" >&2
+    return 1
+  fi
+
+  if [ -f "$stack/docker-compose.lock.yml" ]; then
+    docker compose --project-directory "$stack" \
+      -f "$stack/docker-compose.yml" \
+      -f "$stack/docker-compose.lock.yml" "$@"
+    return
+  fi
+
+  docker compose --project-directory "$stack" \
+    -f "$stack/docker-compose.yml" "$@"
+}
+
+run_all() {
+  first_arg=$1
+  selected_services=$SERVICES
+  case "$first_arg" in
+    down|stop|rm)
+      selected_services=$SERVICES_REVERSED
+      ;;
+  esac
+
+  status=0
+  for current_service in $selected_services; do
+    echo "==> $current_service" >&2
+    run_compose "$current_service" ignore "$@" || status=$?
+  done
+
+  return "$status"
+}
 
 case "$service" in
-  databases|monitoring|linkwarden|davis|freshrss|ttrss|kill-newsletter|web|gateway) ;;
+  all)
+    run_all "$@"
+    exit $?
+    ;;
   *)
-    echo "Service inconnu : $service" >&2
-    exit 2
+    if ! is_known_service "$service"; then
+      echo "Service inconnu : $service" >&2
+      usage
+      exit 2
+    fi
     ;;
 esac
 
-if [ ! -f "$stack/docker-compose.yml" ]; then
-  echo "Projet Compose absent : $stack" >&2
-  exit 1
-fi
-
-if [ -f "$stack/docker-compose.lock.yml" ]; then
-  exec docker compose --project-directory "$stack" \
-    -f "$stack/docker-compose.yml" \
-    -f "$stack/docker-compose.lock.yml" "$@"
-fi
-
-exec docker compose --project-directory "$stack" \
-  -f "$stack/docker-compose.yml" "$@"
+run_compose "$service" required "$@"

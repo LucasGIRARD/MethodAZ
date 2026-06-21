@@ -8,6 +8,7 @@ CONFIG="$INSTALL_DIR/config/vps.env"
 SECRETS="$INSTALL_DIR/config/secrets.env"
 PHASE=all
 FINALIZE_SSH=false
+APPLICATION_SERVICES="linkwarden davis freshrss ttrss kill-newsletter web"
 
 usage() {
   cat <<'EOF'
@@ -83,6 +84,16 @@ validate_key_path() {
       die "$name doit pointer vers install/keys/... ou vers un chemin absolu, pas vers '$value'. Les chemins ../ changent après copie dans /opt/vps-install."
       ;;
   esac
+}
+
+application_services() {
+  selected=${SERVICES:-all}
+  if [ "$selected" = all ]; then
+    printf '%s\n' "$APPLICATION_SERVICES"
+    return 0
+  fi
+
+  printf '%s\n' "$selected" | tr ',' ' '
 }
 
 sftp_chroot_directory() {
@@ -187,6 +198,13 @@ load_configuration() {
   fi
   : "${ADMIN_PASSWORD_HASH:?ADMIN_PASSWORD_HASH manquant}"
   : "${TIMEZONE:?TIMEZONE manquant}"
+
+  for service in $(application_services); do
+    case "$service" in
+      linkwarden|davis|freshrss|ttrss|kill-newsletter|web) ;;
+      *) die "SERVICES contient un service inconnu : $service" ;;
+    esac
+  done
 }
 
 apply_resource_profile() {
@@ -994,10 +1012,7 @@ install_services() {
     && [ ! -f /opt/selfhosted/databases/docker-compose.yml ]; then
     install_databases
   fi
-  old_ifs=$IFS
-  IFS=,
-  for service in ${SERVICES:-}; do
-    IFS=$old_ifs
+  for service in $(application_services); do
     [ -n "$service" ] || continue
     source="$INSTALL_DIR/services/$service"
     [ -d "$source" ] || die "modèle de service absent : $service"
@@ -1020,9 +1035,7 @@ install_services() {
       /usr/local/sbin/vps-image-lock "$service"
       /usr/local/sbin/vps-compose "$service" up -d
     fi
-    IFS=,
   done
-  IFS=$old_ifs
 }
 
 install_gateway() {

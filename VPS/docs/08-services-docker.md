@@ -58,9 +58,13 @@ fichier public `vps.env` et du fichier privé `secrets.env`.
 La liste est définie dans `install/config/vps.env` :
 
 ```bash
-SERVICES=linkwarden,davis,freshrss,ttrss,web
+SERVICES=all
 AUTO_START_SERVICES=false
 ```
+
+`SERVICES=all` déploie tous les services applicatifs connus :
+`linkwarden`, `davis`, `freshrss`, `ttrss`, `kill-newsletter` et `web`. Pour
+un VPS partiel, remplacer `all` par une liste séparée par des virgules.
 
 Déployer ou remettre à jour les fichiers sans démarrer les applications :
 
@@ -83,9 +87,26 @@ sudo vps-compose linkwarden config
 sudo vps-compose linkwarden up -d
 sudo vps-compose linkwarden ps
 sudo vps-compose linkwarden logs --tail=100
+sudo vps-compose all ps
 ```
 
-Le premier argument est le nom du répertoire sous `/opt/selfhosted`.
+Le premier argument est le nom du répertoire sous `/opt/selfhosted`, ou `all`
+pour appliquer la commande à tous les projets Compose installés. En mode `all`,
+les projets absents sont signalés puis ignorés.
+
+Exemples :
+
+```bash
+sudo vps-compose all config --quiet
+sudo vps-compose all up -d
+sudo vps-compose all ps
+sudo vps-compose all pull
+sudo vps-compose all down
+```
+
+Pour `down`, `stop` et `rm`, l'ordre est inversé : les applications sont
+arrêtées avant `databases`.
+
 Le verrouillage crée `docker-compose.lock.yml` avec les digests exacts.
 
 ## Vérification globale

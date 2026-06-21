@@ -9,8 +9,9 @@
 
 L'installateur clone automatiquement le dépôt amont, sélectionne la révision
 verrouillée par `KILL_NEWSLETTER_REF`, puis construit l'image avec le
-Dockerfile fourni par ce projet. Il suffit d'ajouter `kill-newsletter` à
-`SERVICES` dans `install/config/vps.env` et de lancer la phase applicative :
+Dockerfile fourni par ce projet. Avec `SERVICES=all`, le service est inclus.
+Avec une liste partielle, ajouter `kill-newsletter` à `SERVICES`, puis lancer
+la phase applicative :
 
 ```bash
 sudo vps-install --phase services
