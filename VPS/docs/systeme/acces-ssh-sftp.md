@@ -190,7 +190,26 @@ sudo ss -ltnp | grep sshd
 sudo systemctl is-active ssh.socket || true
 sudo ls -l /root/.ssh/authorized_keys /home/lucas/.ssh/authorized_keys
 sudo ls -l /etc/ssh/authorized_keys/depot
+sudo namei -l /etc/ssh/authorized_keys/depot
 sudo passwd -S depot
+```
+
+Si les logs SSH indiquent :
+
+```text
+Could not open user 'depot' authorized keys '/etc/ssh/authorized_keys/depot': Permission denied
+```
+
+OpenSSH ne peut pas traverser un dossier parent ou lire le fichier de clé
+publique. Corriger :
+
+```bash
+sudo chown root:root /etc/ssh /etc/ssh/authorized_keys
+sudo chmod 0755 /etc/ssh /etc/ssh/authorized_keys
+sudo chown root:root /etc/ssh/authorized_keys/depot
+sudo chmod 0644 /etc/ssh/authorized_keys/depot
+sudo sshd -t
+sudo systemctl restart ssh
 ```
 
 Si `22` apparaît encore avant la finalisation, c'est normal :

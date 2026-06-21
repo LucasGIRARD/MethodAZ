@@ -349,6 +349,15 @@ pas dans `SERVICES`, ignorer sa commande `vps-compose`. Si un service est dans
 `SERVICES` mais apparaît comme `Service non déployé`, rejouer
 `sudo vps-install --phase services`.
 
+Si Docker indique `Projet Compose absent : /opt/selfhosted/web`, vérifier que
+`web` est bien déclaré dans `SERVICES` :
+
+```bash
+sudo grep '^SERVICES=' /opt/vps-install/config/vps.env
+sudo test -f /opt/vps-install/services/web/docker-compose.yml
+sudo vps-install --phase services
+```
+
 ## Déployer un nouveau site web
 
 Le service `web` sert le domaine racine depuis :
@@ -422,3 +431,13 @@ sudo vps-install --phase NOM_DE_PHASE
 ```
 
 Ne pas lancer la finalisation SSH comme mécanisme de reprise.
+
+Si `vps-image-lock` échoue avec une erreur du type :
+
+```text
+install: '/opt/selfhosted/linkwarden/.docker-compose.lock.yml.X' and '/opt/selfhosted/linkwarden/.docker-compose.lock.yml.X' are the same file
+```
+
+le helper système est une ancienne version. Rejouer la phase demandée avec le
+bundle à jour ; l'installateur recopie désormais automatiquement les helpers
+avant les phases `databases`, `services`, `gateway` et `monitoring`.

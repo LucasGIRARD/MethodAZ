@@ -596,6 +596,23 @@ EOF
   systemctl restart fail2ban
 }
 
+install_runtime_scripts() {
+  install -m 0755 "$SCRIPT_DIR/vps-compose" /usr/local/sbin/vps-compose
+  install -m 0755 "$SCRIPT_DIR/vps-image-lock" /usr/local/sbin/vps-image-lock
+  install -m 0755 "$SCRIPT_DIR/vps-image-audit" /usr/local/sbin/vps-image-audit
+  install -m 0755 "$SCRIPT_DIR/vps-backup" /usr/local/sbin/vps-backup
+  install -m 0755 "$SCRIPT_DIR/vps-backup-remote" \
+    /usr/local/sbin/vps-backup-remote
+  install -m 0755 "$SCRIPT_DIR/vps-restore-test" \
+    /usr/local/sbin/vps-restore-test
+  install -m 0755 "$SCRIPT_DIR/vps-secret-audit" \
+    /usr/local/sbin/vps-secret-audit
+  install -m 0755 "$SCRIPT_DIR/vps-health-report" \
+    /usr/local/sbin/vps-health-report
+  install -m 0755 "$SCRIPT_DIR/vps-nightly-maintenance" \
+    /usr/local/sbin/vps-nightly-maintenance
+}
+
 install_docker() {
   [ "${INSTALL_DOCKER:-true}" = true ] || return 0
   log "Docker depuis le dépôt officiel"
@@ -661,20 +678,7 @@ EOF
   systemctl enable --now docker
   systemctl restart docker
   usermod -aG docker "$ADMIN_USER"
-  install -m 0755 "$SCRIPT_DIR/vps-compose" /usr/local/sbin/vps-compose
-  install -m 0755 "$SCRIPT_DIR/vps-image-lock" /usr/local/sbin/vps-image-lock
-  install -m 0755 "$SCRIPT_DIR/vps-image-audit" /usr/local/sbin/vps-image-audit
-  install -m 0755 "$SCRIPT_DIR/vps-backup" /usr/local/sbin/vps-backup
-  install -m 0755 "$SCRIPT_DIR/vps-backup-remote" \
-    /usr/local/sbin/vps-backup-remote
-  install -m 0755 "$SCRIPT_DIR/vps-restore-test" \
-    /usr/local/sbin/vps-restore-test
-  install -m 0755 "$SCRIPT_DIR/vps-secret-audit" \
-    /usr/local/sbin/vps-secret-audit
-  install -m 0755 "$SCRIPT_DIR/vps-health-report" \
-    /usr/local/sbin/vps-health-report
-  install -m 0755 "$SCRIPT_DIR/vps-nightly-maintenance" \
-    /usr/local/sbin/vps-nightly-maintenance
+  install_runtime_scripts
   install -m 0644 \
     "$INSTALL_DIR/system/systemd/vps-nightly-maintenance.service" \
     /etc/systemd/system/vps-nightly-maintenance.service
@@ -779,6 +783,7 @@ prepare_kill_newsletter_source() {
 install_databases() {
   [ "${INSTALL_DATABASES:-true}" = true ] || return 0
   log "Bases de données partagées"
+  install_runtime_scripts
 
   legacy_mariadb=/opt/selfhosted/databases/mariadb
   if find "$legacy_mariadb" -mindepth 1 -print -quit 2>/dev/null \
@@ -984,6 +989,7 @@ bootstrap_linkwarden_user() {
 
 install_services() {
   log "Projets Docker applicatifs"
+  install_runtime_scripts
   if [ "${INSTALL_DATABASES:-true}" = true ] \
     && [ ! -f /opt/selfhosted/databases/docker-compose.yml ]; then
     install_databases
@@ -1022,6 +1028,7 @@ install_services() {
 install_gateway() {
   [ "${INSTALL_GATEWAY:-true}" = true ] || return 0
   log "Nginx et Certbot dans Docker"
+  install_runtime_scripts
   DEBIAN_FRONTEND=noninteractive apt-get install -y apache2-utils
   copy_stack gateway "$INSTALL_DIR/gateway"
 
@@ -1061,6 +1068,7 @@ EOF
 install_monitoring() {
   [ "${INSTALL_MONITORING:-true}" = true ] || return 0
   log "Supervision Docker"
+  install_runtime_scripts
   copy_stack monitoring "$INSTALL_DIR/monitoring"
 
   umask 077

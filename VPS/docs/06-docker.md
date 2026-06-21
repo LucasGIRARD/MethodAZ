@@ -191,5 +191,10 @@ sudo vps-compose linkwarden up -d
 Le fichier `docker-compose.lock.yml` créé dans le projet est chargé
 automatiquement par `vps-compose`, `vps-gateway` et `vps-monitoring`.
 
+Si `vps-image-lock` échoue avec `install: ... are the same file`, le helper
+installé dans `/usr/local/sbin/vps-image-lock` est trop ancien. Rejouer la phase
+concernée avec un bundle à jour ; les phases applicatives réinstallent les
+helpers avant de les utiliser.
+
 La procédure complète et l'audit des CVE sont décrits dans
 [Sécurité des images Docker](17-securite-images-docker.md).
