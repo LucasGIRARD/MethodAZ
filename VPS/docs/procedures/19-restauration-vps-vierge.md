@@ -73,7 +73,7 @@ cp -a /root/configuration-restauree/keys/. install/keys/
 ## Reconstruire le socle
 
 ```bash
-sudo sh install/scripts/validate-bundle.sh
+sudo sh install/scripts/validate-bundle.sh --scripts-only
 sudo sh install/scripts/vps-install.sh --phase all
 sudo vps-compose gateway down
 sudo vps-monitoring stop

@@ -156,13 +156,12 @@ le placer entre quotes simples, par exemple `ADMIN_PASSWORD_HASH='$6$...'`.
 ## Valider le bundle
 
 ```bash
-sh install/scripts/validate-bundle.sh
+sh install/scripts/validate-bundle.sh --scripts-only
 ```
 
-Cette commande vérifie la syntaxe des scripts et de tous les projets Compose
-sans démarrer de conteneur. Si Docker n'est pas encore installé, elle vérifie
-seulement les scripts et indique que la validation Compose devra être rejouée
-après la phase Docker.
+Cette commande vérifie la syntaxe des scripts sans dépendre de Docker, qui
+n'est pas encore installé à ce stade. La validation Compose complète peut être
+rejouée après la phase Docker avec `sh install/scripts/validate-bundle.sh`.
 
 ## Lancer l'installation
 
@@ -216,11 +215,25 @@ dans le dépôt.
 Depuis un second terminal client :
 
 ```bash
+ssh -i ~/.ssh/vps-admin -p 22 root@IP_DU_SERVEUR
 ssh -i ~/.ssh/vps-admin -p PORT_REEL lucas@IP_DU_SERVEUR
 sftp -i ~/.ssh/vps-sftp -P PORT_REEL depot@IP_DU_SERVEUR
 ```
 
-Ne pas poursuivre si l'une des connexions échoue.
+Ne pas poursuivre si l'une des connexions échoue. La première connexion root
+sert uniquement de filet de sécurité pendant le bootstrap ; elle est fermée
+après `--finalize-ssh`.
+
+Si `lucas` retourne `Authentication rejected`, vérifier depuis la session root
+ouverte :
+
+```bash
+sudo ls -l /root/.ssh/authorized_keys /home/lucas/.ssh/authorized_keys
+sudo ssh-keygen -lf /root/.ssh/authorized_keys
+sudo ssh-keygen -lf /home/lucas/.ssh/authorized_keys
+sudo sh install/scripts/vps-install.sh --phase base
+sudo sh install/scripts/vps-install.sh --phase ssh
+```
 
 ## Fermer le port 22 temporaire
 

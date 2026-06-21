@@ -3,26 +3,35 @@ set -eu
 
 SCRIPT_DIR=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
 INSTALL_DIR=$(CDPATH='' cd -- "$SCRIPT_DIR/.." && pwd)
+SCRIPTS_ONLY=false
+
+usage() {
+  cat <<EOF
+Usage : validate-bundle.sh [--scripts-only] [CONFIG] [SECRETS]
+
+Options :
+  --scripts-only  Vérifie seulement la syntaxe des scripts, sans Docker ni fichiers env.
+EOF
+}
+
+case "${1:-}" in
+  --scripts-only)
+    SCRIPTS_ONLY=true
+    shift
+    ;;
+  --help|-h)
+    usage
+    exit 0
+    ;;
+esac
+
 CONFIG=${1:-"$INSTALL_DIR/config/vps.env"}
 SECRETS=${2:-"$INSTALL_DIR/config/secrets.env"}
 
-[ -r "$CONFIG" ] || {
-  echo "Configuration absente : $CONFIG" >&2
-  exit 1
+[ "$#" -le 2 ] || {
+  usage >&2
+  exit 2
 }
-[ -r "$SECRETS" ] || {
-  echo "Secrets absents : $SECRETS" >&2
-  exit 1
-}
-
-secret_mode=$(stat -c '%a' "$SECRETS")
-case "$secret_mode" in
-  400|600) ;;
-  *)
-    echo "Le fichier de secrets doit avoir le mode 0600 ou 0400." >&2
-    exit 1
-    ;;
-esac
 
 for script in \
   "$INSTALL_DIR/scripts/fetch-vps.sh" \
@@ -43,6 +52,29 @@ for script in \
   "$INSTALL_DIR/monitoring/scripts/vps-local-metrics"; do
   sh -n "$script"
 done
+
+if [ "$SCRIPTS_ONLY" = true ]; then
+  echo "Validation terminée : scripts cohérents."
+  exit 0
+fi
+
+[ -r "$CONFIG" ] || {
+  echo "Configuration absente : $CONFIG" >&2
+  exit 1
+}
+[ -r "$SECRETS" ] || {
+  echo "Secrets absents : $SECRETS" >&2
+  exit 1
+}
+
+secret_mode=$(stat -c '%a' "$SECRETS")
+case "$secret_mode" in
+  400|600) ;;
+  *)
+    echo "Le fichier de secrets doit avoir le mode 0600 ou 0400." >&2
+    exit 1
+    ;;
+esac
 
 if ! command -v docker >/dev/null 2>&1; then
   echo "Validation partielle : Docker est introuvable."

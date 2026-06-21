@@ -161,6 +161,23 @@ compose_env_quote() {
   printf "'%s'" "$(printf '%s' "$1" | sed "s/'/\\\\'/g")"
 }
 
+ensure_authorized_key() {
+  key_file=$1
+  authorized_keys=$2
+  owner=$3
+  group=$4
+
+  install -d -m 0700 -o "$owner" -g "$group" "$(dirname "$authorized_keys")"
+  touch "$authorized_keys"
+  chown "$owner:$group" "$authorized_keys"
+  chmod 0600 "$authorized_keys"
+
+  if ! grep -qxF -f "$key_file" "$authorized_keys"; then
+    printf '\n' >> "$authorized_keys"
+    cat "$key_file" >> "$authorized_keys"
+  fi
+}
+
 web_server_names() {
   names=$WEB_DOMAIN
   old_ifs=$IFS
@@ -278,9 +295,11 @@ install_base() {
 
   admin_key=$(resolve_from_install "$ADMIN_SSH_KEY_FILE")
   [ -s "$admin_key" ] || die "clé publique administrateur absente : $admin_key"
-  install -d -m 0700 -o "$ADMIN_USER" -g "$ADMIN_USER" "/home/$ADMIN_USER/.ssh"
-  install -m 0600 -o "$ADMIN_USER" -g "$ADMIN_USER" \
-    "$admin_key" "/home/$ADMIN_USER/.ssh/authorized_keys"
+  ensure_authorized_key \
+    "$admin_key" "/home/$ADMIN_USER/.ssh/authorized_keys" "$ADMIN_USER" "$ADMIN_USER"
+  if [ "${KEEP_SSH_PORT_22:-true}" = true ]; then
+    ensure_authorized_key "$admin_key" /root/.ssh/authorized_keys root root
+  fi
 
   if [ "${ENABLE_SWAP:-true}" = true ] && ! swapon --show=NAME | grep -qx /swapfile; then
     fallocate -l "${SWAP_SIZE:-2G}" /swapfile
@@ -296,9 +315,14 @@ write_ssh_configuration() {
   log "Configuration SSH renforcée"
   install -d -m 0755 /etc/ssh/sshd_config.d /etc/ssh/authorized_keys
 
+  permit_root_login=no
+  if [ "${KEEP_SSH_PORT_22:-true}" = true ] && [ "$FINALIZE_SSH" != true ]; then
+    permit_root_login=prohibit-password
+  fi
+
   cat > /etc/ssh/sshd_config.d/20-vps-hardening.conf <<EOF
 Port $SSH_PORT
-PermitRootLogin no
+PermitRootLogin $permit_root_login
 PasswordAuthentication no
 KbdInteractiveAuthentication no
 PubkeyAuthentication yes

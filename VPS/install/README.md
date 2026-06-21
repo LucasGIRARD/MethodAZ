@@ -34,7 +34,7 @@ chmod 0600 install/config/secrets.env
 Valider avant toute modification du serveur :
 
 ```bash
-sh install/scripts/validate-bundle.sh
+sh install/scripts/validate-bundle.sh --scripts-only
 pwsh install/scripts/validate-repository.ps1
 ```
 

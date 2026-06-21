@@ -32,11 +32,12 @@ Les clés privées restent sur le poste client.
 
 ## Configuration SSH appliquée
 
-L'installateur crée `/etc/ssh/sshd_config.d/20-vps-hardening.conf` :
+L'installateur crée `/etc/ssh/sshd_config.d/20-vps-hardening.conf`.
+Pendant le bootstrap, root reste autorisé uniquement par clé :
 
 ```text
 Port **000
-PermitRootLogin no
+PermitRootLogin prohibit-password
 PasswordAuthentication no
 KbdInteractiveAuthentication no
 PubkeyAuthentication yes
@@ -48,10 +49,17 @@ ClientAliveCountMax 2
 ```
 
 Pendant le premier passage, un second fichier conserve temporairement le port
-22. Root est toutefois bloqué dès l'application de cette configuration :
-`PermitRootLogin no` reste actif. Le port 22 temporaire sert uniquement à
-garder un chemin d'accès au compte administrateur par clé pendant la validation
-du port privé.
+22. La clé `admin.pub` est installée à la fois pour `lucas` et pour `root` :
+
+```text
+/home/lucas/.ssh/authorized_keys
+/root/.ssh/authorized_keys
+```
+
+Root ne peut pas se connecter par mot de passe. Il reste accessible par clé
+uniquement le temps de valider le compte administrateur et le port privé.
+Après `vps-install --finalize-ssh`, l'installateur applique
+`PermitRootLogin no`.
 
 ## Isolation SFTP
 
@@ -110,8 +118,9 @@ Dans SFTP, le répertoire accessible en écriture est `/upload`.
 Conserver la session root initiale et tester dans un second terminal :
 
 ```bash
-ssh -p **000 lucas@IP_DU_SERVEUR
-sftp -P **000 depot@IP_DU_SERVEUR
+ssh -i ~/.ssh/vps-admin -p 22 root@IP_DU_SERVEUR
+ssh -i ~/.ssh/vps-admin -p **000 lucas@IP_DU_SERVEUR
+sftp -i ~/.ssh/vps-sftp -P **000 depot@IP_DU_SERVEUR
 ```
 
 Après réussite des deux tests :
@@ -130,6 +139,7 @@ sudo sshd -t
 sudo sshd -T | grep -E '^(port|permitrootlogin|passwordauthentication)'
 sudo ss -ltnp | grep sshd
 sudo systemctl is-active ssh.socket || true
+sudo ls -l /root/.ssh/authorized_keys /home/lucas/.ssh/authorized_keys
 ```
 
 Si `22` apparaît encore avant la finalisation, c'est normal :
