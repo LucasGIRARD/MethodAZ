@@ -103,6 +103,9 @@ Renseigner au minimum :
 ```bash
 ADMIN_USER=lucas
 SSH_PORT=PORT_REEL
+SFTP_CHROOT_DIR=/opt/selfhosted/web
+SFTP_START_DIRECTORY=/html
+SFTP_UMASK=0022
 BASE_DOMAIN=example.fr
 ADMIN_EMAIL=contact@example.fr
 SERVICES=linkwarden,davis,freshrss,ttrss,web
@@ -403,9 +406,9 @@ curl -I http://127.0.0.1:3006
 curl -I https://docs.example.fr
 ```
 
-Pour un site déposé par SFTP, envoyer les fichiers avec le compte `depot` dans
-`/upload`, puis les déplacer depuis la session SSH admin vers
-`/opt/selfhosted/web/html/NOM_DU_SITE`.
+Pour un site déposé par SFTP, envoyer les fichiers avec le compte `depot`
+directement dans `/html` ou dans un sous-dossier de `/html`. Dans la session
+SFTP, `/html` correspond à `/opt/selfhosted/web/html` sur le VPS.
 
 ## Reprise après erreur
 

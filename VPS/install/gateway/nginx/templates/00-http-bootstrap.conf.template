@@ -4,9 +4,8 @@ server {
     server_name _;
 
     location ^~ /.well-known/acme-challenge/ {
-        root /var/www/certbot;
+        alias /var/www/certbot/.well-known/acme-challenge/;
         default_type text/plain;
-        try_files $uri =404;
     }
 
     location / {
@@ -27,9 +26,8 @@ server {
         ${MONITORING_DOMAIN};
 
     location ^~ /.well-known/acme-challenge/ {
-        root /var/www/certbot;
+        alias /var/www/certbot/.well-known/acme-challenge/;
         default_type text/plain;
-        try_files $uri =404;
     }
 
     location / {

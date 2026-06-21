@@ -85,6 +85,57 @@ validate_key_path() {
   esac
 }
 
+sftp_chroot_directory() {
+  if [ -n "${SFTP_CHROOT_DIR:-}" ]; then
+    printf '%s\n' "$SFTP_CHROOT_DIR"
+    return 0
+  fi
+
+  printf '%s/%s\n' "${SFTP_ROOT:-/srv/sftp}" "${SFTP_USER:-depot}"
+}
+
+sftp_start_directory() {
+  if [ -n "${SFTP_START_DIRECTORY:-}" ]; then
+    printf '%s\n' "$SFTP_START_DIRECTORY"
+    return 0
+  fi
+
+  if [ -n "${SFTP_CHROOT_DIR:-}" ]; then
+    printf '%s\n' /html
+    return 0
+  fi
+
+  printf '%s\n' /upload
+}
+
+sftp_writable_directory() {
+  chroot=$(sftp_chroot_directory)
+  start=$(sftp_start_directory)
+  printf '%s/%s\n' "$chroot" "${start#/}"
+}
+
+configure_sftp_directories() {
+  chroot=$(sftp_chroot_directory)
+  writable=$(sftp_writable_directory)
+
+  install -d -m 0755 -o root -g root "$chroot"
+  install -d -m 0755 -o "$SFTP_USER" -g sftp-only "$writable"
+
+  if [ "$writable" = /opt/selfhosted/web/html ]; then
+    chown -R "$SFTP_USER:sftp-only" "$writable"
+    find "$writable" -type d -exec chmod 0755 {} \;
+  fi
+}
+
+configure_sftp_directories_if_ready() {
+  [ "${ENABLE_SFTP:-true}" = true ] || return 0
+  [ -n "${SFTP_USER:-}" ] || return 0
+  id "$SFTP_USER" >/dev/null 2>&1 || return 0
+  getent group sftp-only >/dev/null 2>&1 || return 0
+
+  configure_sftp_directories
+}
+
 load_configuration() {
   [ -r "$CONFIG" ] || die "configuration absente : $CONFIG"
   [ -r "$SECRETS" ] || die "secrets absents : $SECRETS"
@@ -115,8 +166,24 @@ load_configuration() {
   : "${ADMIN_SSH_KEY_FILE:?ADMIN_SSH_KEY_FILE manquant}"
   validate_key_path ADMIN_SSH_KEY_FILE "$ADMIN_SSH_KEY_FILE"
   if [ "${ENABLE_SFTP:-true}" = true ]; then
+    : "${SFTP_USER:?SFTP_USER manquant}"
     : "${SFTP_SSH_KEY_FILE:?SFTP_SSH_KEY_FILE manquant}"
     validate_key_path SFTP_SSH_KEY_FILE "$SFTP_SSH_KEY_FILE"
+    case "${SFTP_CHROOT_DIR:-}" in
+      ''|/*) ;;
+      *) die "SFTP_CHROOT_DIR doit être un chemin absolu" ;;
+    esac
+    case "${SFTP_ROOT:-}" in
+      ''|/*) ;;
+      *) die "SFTP_ROOT doit être un chemin absolu" ;;
+    esac
+    case "$(sftp_start_directory)" in
+      /*) ;;
+      *) die "SFTP_START_DIRECTORY doit commencer par /" ;;
+    esac
+    case "${SFTP_UMASK:-0022}" in
+      *[!0-7]*|'') die "SFTP_UMASK doit être une valeur octale, par exemple 0022" ;;
+    esac
   fi
   : "${ADMIN_PASSWORD_HASH:?ADMIN_PASSWORD_HASH manquant}"
   : "${TIMEZONE:?TIMEZONE manquant}"
@@ -349,6 +416,9 @@ write_ssh_configuration() {
   if [ "${KEEP_SSH_PORT_22:-true}" = true ] && [ "$FINALIZE_SSH" != true ]; then
     permit_root_login=prohibit-password
   fi
+  sftp_chroot=$(sftp_chroot_directory)
+  sftp_start=$(sftp_start_directory)
+  sftp_umask=${SFTP_UMASK:-0022}
 
   cat > /etc/ssh/sshd_config.d/20-vps-hardening.conf <<EOF
 Port $SSH_PORT
@@ -363,8 +433,8 @@ ClientAliveInterval 300
 ClientAliveCountMax 2
 
 Match Group sftp-only
-    ChrootDirectory ${SFTP_ROOT:-/srv/sftp}/%u
-    ForceCommand internal-sftp -d /upload -u 0027
+    ChrootDirectory $sftp_chroot
+    ForceCommand internal-sftp -d $sftp_start -u $sftp_umask
     AllowAgentForwarding no
     AllowTcpForwarding no
     PermitTunnel no
@@ -388,15 +458,13 @@ EOF
 
     getent group sftp-only >/dev/null 2>&1 || groupadd --system sftp-only
     if ! id "${SFTP_USER:?SFTP_USER manquant}" >/dev/null 2>&1; then
-      useradd --no-create-home --home-dir /upload --shell /usr/sbin/nologin \
+      useradd --no-create-home --home-dir "$sftp_start" --shell /usr/sbin/nologin \
         --gid sftp-only "$SFTP_USER"
     fi
-    usermod --gid sftp-only --home /upload --shell /usr/sbin/nologin "$SFTP_USER"
+    usermod --gid sftp-only --home "$sftp_start" --shell /usr/sbin/nologin "$SFTP_USER"
     set_random_disabled_password "$SFTP_USER"
 
-    chroot="${SFTP_ROOT:-/srv/sftp}/$SFTP_USER"
-    install -d -m 0755 -o root -g root "$chroot"
-    install -d -m 0750 -o "$SFTP_USER" -g sftp-only "$chroot/upload"
+    configure_sftp_directories
     install -m 0644 -o root -g root \
       "$sftp_key" "/etc/ssh/authorized_keys/$SFTP_USER"
   fi
@@ -935,6 +1003,7 @@ install_services() {
     write_service_env "$service"
     if [ "$service" = web ]; then
       create_web_subdomain_directories
+      configure_sftp_directories_if_ready
     fi
     chown root:root "/opt/selfhosted/$service"
     chown root:root "/opt/selfhosted/$service/docker-compose.yml"

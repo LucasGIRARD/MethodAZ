@@ -156,6 +156,78 @@ Après émission du certificat, relancer plutôt l'activation TLS :
 sudo vps-gateway enable-tls
 ```
 
+### Certificat absent
+
+Si `sudo vps-gateway enable-tls` affiche :
+
+```text
+Certificat absent : certbot/conf/live/vps-services/fullchain.pem
+```
+
+le certificat n'a pas encore été émis, ou l'émission a échoué. Reprendre dans
+l'ordre :
+
+```bash
+sudo vps-gateway start-http
+
+curl -I http://links.example.fr/.well-known/acme-challenge/test
+curl -I http://monitoring.example.fr/.well-known/acme-challenge/test
+
+sudo vps-gateway issue-certificate
+sudo vps-gateway enable-tls
+```
+
+Le test ACME doit répondre depuis le Nginx du VPS avant l'appel Certbot. Un
+statut `404` est acceptable pour le fichier `test` inexistant ; un timeout, une
+erreur DNS ou une réponse d'un autre serveur ne l'est pas.
+
+### Challenges ACME en `404` ou contenu différent
+
+Si Certbot échoue avec :
+
+```text
+Invalid response from http://DOMAINE/.well-known/acme-challenge/...: 404
+```
+
+ou :
+
+```text
+The key authorization file from the server did not match this challenge
+```
+
+remettre le gateway en mode HTTP d'amorçage, nettoyer les anciens challenges,
+puis relancer l'émission :
+
+```bash
+sudo vps-gateway start-http
+sudo rm -rf /opt/selfhosted/gateway/certbot/www/.well-known/acme-challenge
+sudo install -d -m 0755 \
+  /opt/selfhosted/gateway/certbot/www/.well-known/acme-challenge
+
+echo ok | sudo tee \
+  /opt/selfhosted/gateway/certbot/www/.well-known/acme-challenge/ping >/dev/null
+curl -s http://links.example.fr/.well-known/acme-challenge/ping
+
+sudo vps-gateway issue-certificate
+```
+
+Le `curl` doit afficher `ok` pour chaque domaine demandé au certificat. Si un
+domaine répond `404`, pointe vers un autre serveur ou répond avec un autre
+contenu, corriger DNS/Nginx avant de relancer Certbot.
+
+Si le `curl` répond `403 Forbidden`, Nginx atteint bien le webroot ACME mais ne
+peut pas traverser ou lire les dossiers. Corriger les permissions publiques du
+webroot ACME :
+
+```bash
+sudo chmod 0755 /opt/selfhosted/gateway/certbot/www
+sudo chmod 0755 /opt/selfhosted/gateway/certbot/www/.well-known
+sudo chmod 0755 /opt/selfhosted/gateway/certbot/www/.well-known/acme-challenge
+sudo find /opt/selfhosted/gateway/certbot/www/.well-known/acme-challenge \
+  -type f -exec chmod 0644 {} \;
+sudo vps-gateway start-http
+```
+
 ## Vérification
 
 ```bash

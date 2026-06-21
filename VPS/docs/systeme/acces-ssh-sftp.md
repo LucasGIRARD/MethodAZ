@@ -12,6 +12,17 @@ Deux comptes séparés sont utilisés :
 SFTP utilise le protocole SSH. Il écoute donc sur le même port privé `**000`
 et ne nécessite aucun port FTP supplémentaire.
 
+Configuration publique associée :
+
+```env
+ENABLE_SFTP=true
+SFTP_USER=depot
+SFTP_SSH_KEY_FILE=install/keys/sftp.pub
+SFTP_CHROOT_DIR=/opt/selfhosted/web
+SFTP_START_DIRECTORY=/html
+SFTP_UMASK=0022
+```
+
 ## Générer les clés sur le poste client
 
 Créer une clé distincte pour chaque usage :
@@ -66,20 +77,24 @@ Après `vps-install --finalize-ssh`, l'installateur applique
 Le compte SFTP appartient au groupe `sftp-only` et reçoit :
 
 ```text
-ChrootDirectory /srv/sftp/%u
-ForceCommand internal-sftp -d /upload -u 0027
+ChrootDirectory /opt/selfhosted/web
+ForceCommand internal-sftp -d /html -u 0022
 AllowAgentForwarding no
 AllowTcpForwarding no
 PermitTunnel no
 X11Forwarding no
 ```
 
-Le répertoire de chroot appartient obligatoirement à root :
+Le répertoire de chroot appartient obligatoirement à root. Le dossier web
+accessible en SFTP appartient au compte `depot` :
 
 ```text
-/srv/sftp/depot          root:root, 0755
-/srv/sftp/depot/upload   depot:sftp-only, 0750
+/opt/selfhosted/web        root:root, 0755
+/opt/selfhosted/web/html   depot:sftp-only, 0755
 ```
+
+Dans la session SFTP, `depot` arrive dans `/html`. Ce chemin correspond sur le
+système hôte à `/opt/selfhosted/web/html`.
 
 La clé SFTP est stockée hors du chroot dans
 `/etc/ssh/authorized_keys/depot`, avec le propriétaire `root:root` et le mode
@@ -118,7 +133,34 @@ ssh mon-vps
 sftp mon-vps-sftp
 ```
 
-Dans SFTP, le répertoire accessible en écriture est `/upload`.
+Dans SFTP, le répertoire accessible en écriture est `/html`, qui correspond à
+`/opt/selfhosted/web/html` sur le VPS.
+
+## Modifier l'emplacement SFTP après installation
+
+Éditer la configuration canonique :
+
+```bash
+sudo nano /opt/vps-install/config/vps.env
+```
+
+Valeurs attendues pour exposer le contenu web :
+
+```env
+SFTP_CHROOT_DIR=/opt/selfhosted/web
+SFTP_START_DIRECTORY=/html
+SFTP_UMASK=0022
+```
+
+Réappliquer ensuite SSH et le service web :
+
+```bash
+sudo vps-install --phase ssh
+sudo vps-install --phase services
+```
+
+La première commande met à jour `sshd` et les droits du dossier `/html`. La
+seconde réapplique les droits si la phase web recrée des dossiers.
 
 ## Retirer le port 22
 

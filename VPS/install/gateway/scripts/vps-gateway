@@ -53,13 +53,61 @@ nginx_test() {
   compose run --rm --no-deps nginx nginx -t
 }
 
+write_http_bootstrap_template() {
+  cat > nginx/templates/00-http-bootstrap.conf.template <<'EOF'
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    server_name _;
+
+    location ^~ /.well-known/acme-challenge/ {
+        alias /var/www/certbot/.well-known/acme-challenge/;
+        default_type text/plain;
+    }
+
+    location / {
+        return 404;
+    }
+}
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name
+        ${LINKWARDEN_DOMAIN}
+        ${DAVIS_DOMAIN}
+        ${FRESHRSS_DOMAIN}
+        ${TTRSS_DOMAIN}
+        ${NEWSLETTER_DOMAIN}
+        ${WEB_SERVER_NAMES}
+        ${MONITORING_DOMAIN};
+
+    location ^~ /.well-known/acme-challenge/ {
+        alias /var/www/certbot/.well-known/acme-challenge/;
+        default_type text/plain;
+    }
+
+    location / {
+        return 404;
+    }
+}
+EOF
+}
+
+prepare_http_challenge_root() {
+  install -d -m 0755 certbot/www certbot/www/.well-known
+  rm -rf certbot/www/.well-known/acme-challenge
+  install -d -m 0755 certbot/www/.well-known/acme-challenge
+}
+
 start_http() {
   install -d -m 0750 \
-    nginx/generated nginx/auth certbot/conf certbot/lib certbot/www \
+    nginx/generated nginx/auth certbot/conf certbot/lib \
     certbot/logs logs/nginx
-  if [ -f nginx/templates/10-services.conf.template ]; then
-    rm -f nginx/templates/00-http-bootstrap.conf.template
-  fi
+  install -d -m 0755 certbot/www
+  rm -f nginx/templates/00-http.conf.template nginx/templates/10-services.conf.template
+  write_http_bootstrap_template
+  prepare_http_challenge_root
   rm -f nginx/generated/*.conf
   compose config --quiet
   compose up -d nginx
@@ -80,6 +128,7 @@ issue_certificate() {
 
   set -- "$@" -d "$MONITORING_DOMAIN"
 
+  prepare_http_challenge_root
   compose run --rm certbot certonly \
     --webroot \
     --webroot-path /var/www/certbot \

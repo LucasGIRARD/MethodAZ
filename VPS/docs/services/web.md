@@ -103,6 +103,15 @@ Déposer ensuite l'application dans :
 Pour un sous-domaine, déposer son contenu dans le dossier correspondant, par
 exemple `/opt/selfhosted/web/html/www` pour `www.example.fr`.
 
+Avec le compte SFTP `depot`, ce même dossier est exposé sous :
+
+```text
+/html
+```
+
+Le dépôt SFTP dans `/html/www` écrit donc dans
+`/opt/selfhosted/web/html/www`.
+
 ## Journaux
 
 Apache écrit vers stdout et stderr :

@@ -45,6 +45,53 @@ sudo vps-gateway enable-tls
 Les paramètres actifs imposent TLS 1.2 ou 1.3, désactivent les tickets de
 session et utilisent un cache de session partagé.
 
+Si la commande affiche :
+
+```text
+Certificat absent : certbot/conf/live/vps-services/fullchain.pem
+```
+
+ne pas forcer TLS. Revenir à l'amorçage HTTP, vérifier les domaines, puis
+émettre le certificat :
+
+```bash
+sudo vps-gateway start-http
+curl -I http://links.example.fr/.well-known/acme-challenge/test
+sudo vps-gateway issue-certificate
+sudo vps-gateway enable-tls
+```
+
+Le chemin ACME peut répondre `404` pour le fichier `test`, mais il doit être
+servi par le Nginx du VPS.
+
+Si Certbot reçoit `404` sur ses propres fichiers de challenge, ou si Let's
+Encrypt indique que le contenu servi ne correspond pas au challenge attendu,
+nettoyer le webroot ACME puis tester avec un fichier réel :
+
+```bash
+sudo vps-gateway start-http
+sudo rm -rf /opt/selfhosted/gateway/certbot/www/.well-known/acme-challenge
+sudo install -d -m 0755 \
+  /opt/selfhosted/gateway/certbot/www/.well-known/acme-challenge
+echo ok | sudo tee \
+  /opt/selfhosted/gateway/certbot/www/.well-known/acme-challenge/ping >/dev/null
+curl -s http://links.example.fr/.well-known/acme-challenge/ping
+```
+
+Le `curl` doit retourner `ok` avant de relancer
+`sudo vps-gateway issue-certificate`.
+
+Si le `curl` retourne `403 Forbidden`, rendre le webroot ACME traversable par
+le worker Nginx :
+
+```bash
+sudo chmod 0755 /opt/selfhosted/gateway/certbot/www
+sudo chmod 0755 /opt/selfhosted/gateway/certbot/www/.well-known
+sudo chmod 0755 /opt/selfhosted/gateway/certbot/www/.well-known/acme-challenge
+sudo find /opt/selfhosted/gateway/certbot/www/.well-known/acme-challenge \
+  -type f -exec chmod 0644 {} \;
+```
+
 ## Renouvellement
 
 Test :
