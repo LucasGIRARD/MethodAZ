@@ -167,12 +167,21 @@ le placer entre quotes simples, par exemple `ADMIN_PASSWORD_HASH='$6$...'`.
 ## Valider le bundle
 
 ```bash
+cd /root/vps-setup
 sh install/scripts/validate-bundle.sh --scripts-only
 ```
 
 Cette commande vérifie la syntaxe des scripts sans dépendre de Docker, qui
 n'est pas encore installé à ce stade. La validation Compose complète peut être
-rejouée après la phase Docker avec `sh install/scripts/validate-bundle.sh`.
+rejouée après la phase Docker :
+
+```bash
+sudo sh /opt/vps-install/scripts/validate-bundle.sh
+```
+
+Le chemin `install/scripts/validate-bundle.sh` est relatif au dossier du bundle
+téléchargé. Après la première installation, utiliser le chemin canonique sous
+`/opt/vps-install`.
 
 ## Lancer l'installation
 
@@ -303,7 +312,13 @@ sudo vps-compose databases exec -T postgres pg_isready -U postgres
 Contrôler les stacks applicatifs déclarés dans `SERVICES` :
 
 ```bash
-for service in linkwarden davis freshrss ttrss web; do
+services="$(sudo sed -n 's/^SERVICES=//p' /opt/vps-install/config/vps.env | tail -n1 | tr ',' ' ')"
+
+for service in $services; do
+  if [ ! -f "/opt/selfhosted/$service/docker-compose.yml" ]; then
+    echo "Service non déployé : $service"
+    continue
+  fi
   sudo vps-compose "$service" config --quiet
   sudo vps-compose "$service" ps
 done
@@ -312,6 +327,8 @@ done
 Contrôler le reverse proxy et les certificats :
 
 ```bash
+sudo test -f /opt/selfhosted/gateway/docker-compose.yml \
+  || sudo vps-install --phase gateway
 sudo vps-gateway test
 sudo vps-gateway status
 sudo vps-gateway logs
@@ -325,7 +342,9 @@ curl -I https://www.example.fr
 ```
 
 Remplacer les domaines d'exemple par les domaines réels. Si un service n'est
-pas dans `SERVICES`, ignorer sa commande `vps-compose`.
+pas dans `SERVICES`, ignorer sa commande `vps-compose`. Si un service est dans
+`SERVICES` mais apparaît comme `Service non déployé`, rejouer
+`sudo vps-install --phase services`.
 
 ## Déployer un nouveau site web
 

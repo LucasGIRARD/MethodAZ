@@ -18,3 +18,17 @@ sudo vps-gateway status
 sudo vps-gateway logs
 sudo vps-gateway renew
 ```
+
+Dépannage rapide :
+
+```bash
+sudo test -f /opt/selfhosted/gateway/docker-compose.yml \
+  || sudo vps-install --phase gateway
+sudo vps-gateway status
+sudo vps-gateway logs
+```
+
+Si `WEB_SERVER_NAMES` manque dans les warnings Compose, rejouer
+`sudo vps-install --phase gateway`. Si `nginx` n'est pas démarré, utiliser
+`sudo vps-gateway start-http` avant le certificat, ou
+`sudo vps-gateway enable-tls` après l'émission du certificat.

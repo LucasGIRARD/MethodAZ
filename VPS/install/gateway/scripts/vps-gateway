@@ -4,10 +4,34 @@ set -eu
 STACK_DIR=${STACK_DIR:-/opt/selfhosted/gateway}
 cd "$STACK_DIR"
 
+[ -f "$STACK_DIR/docker-compose.yml" ] || {
+  echo "Fichier Compose gateway absent : $STACK_DIR/docker-compose.yml" >&2
+  echo "Relancer : sudo vps-install --phase gateway" >&2
+  exit 1
+}
+
 set -a
 # shellcheck disable=SC1091
 . "$STACK_DIR/.env"
 set +a
+
+derive_web_server_names() {
+  [ -n "${WEB_SERVER_NAMES:-}" ] && return 0
+
+  WEB_SERVER_NAMES=$WEB_DOMAIN
+  old_ifs=$IFS
+  IFS=,
+  for subdomain in ${WEB_SUBDOMAINS:-}; do
+    IFS=$old_ifs
+    [ -n "$subdomain" ] || continue
+    WEB_SERVER_NAMES="$WEB_SERVER_NAMES $subdomain.$WEB_DOMAIN"
+    IFS=,
+  done
+  IFS=$old_ifs
+  export WEB_SERVER_NAMES
+}
+
+derive_web_server_names
 
 compose() {
   if [ -f "$STACK_DIR/docker-compose.lock.yml" ]; then
@@ -20,6 +44,15 @@ compose() {
   fi
 }
 
+nginx_test() {
+  if compose ps --status running --services | grep -qx nginx; then
+    compose exec nginx nginx -t
+    return 0
+  fi
+
+  compose run --rm --no-deps nginx nginx -t
+}
+
 start_http() {
   install -d -m 0750 \
     nginx/generated nginx/auth certbot/conf certbot/lib certbot/www \
@@ -30,7 +63,7 @@ start_http() {
   rm -f nginx/generated/*.conf
   compose config --quiet
   compose up -d nginx
-  compose exec nginx nginx -t
+  nginx_test
 }
 
 issue_certificate() {
@@ -75,7 +108,7 @@ enable_tls() {
 
   rm -f nginx/generated/*.conf
   compose up -d --force-recreate nginx
-  compose exec nginx nginx -t
+  nginx_test
 }
 
 case "${1:-status}" in
@@ -90,11 +123,13 @@ case "${1:-status}" in
     ;;
   renew)
     compose run --rm certbot renew
-    compose exec nginx nginx -s reload
+    if compose ps --status running --services | grep -qx nginx; then
+      compose exec nginx nginx -s reload
+    fi
     ;;
   test)
     compose config --quiet
-    compose exec nginx nginx -t
+    nginx_test
     ;;
   status)
     compose --profile manual ps

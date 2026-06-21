@@ -81,6 +81,81 @@ sudo vps-gateway logs
 sudo vps-gateway renew
 ```
 
+## Dépannage
+
+### `WEB_SERVER_NAMES` non défini
+
+Si Docker Compose affiche :
+
+```text
+The "WEB_SERVER_NAMES" variable is not set. Defaulting to a blank string.
+```
+
+recréer la configuration gateway depuis le fichier public :
+
+```bash
+sudo vps-install --phase gateway
+```
+
+La phase régénère `/opt/selfhosted/gateway/.env` avec `WEB_DOMAIN`,
+`WEB_SUBDOMAINS` et `WEB_SERVER_NAMES`.
+
+### Fichier Compose gateway absent
+
+Si Docker Compose affiche :
+
+```text
+no configuration file provided: not found
+```
+
+vérifier que le projet gateway a bien été copié :
+
+```bash
+sudo ls -l /opt/selfhosted/gateway/docker-compose.yml
+sudo ls -l /opt/vps-install/gateway/docker-compose.yml
+```
+
+Si le modèle existe sous `/opt/vps-install`, rejouer :
+
+```bash
+sudo vps-install --phase gateway
+```
+
+Si le modèle manque aussi sous `/opt/vps-install`, le bundle installé est
+incomplet ou ancien ; retélécharger une release propre avant de rejouer la
+phase gateway.
+
+### Nginx non démarré
+
+Si `sudo vps-gateway test` affiche :
+
+```text
+service "nginx" is not running
+```
+
+contrôler l'état et les logs :
+
+```bash
+sudo vps-gateway status
+sudo docker compose \
+  --project-directory /opt/selfhosted/gateway \
+  -f /opt/selfhosted/gateway/docker-compose.yml \
+  ps -a
+sudo vps-gateway logs
+```
+
+Avant l'émission du certificat, relancer l'amorçage HTTP :
+
+```bash
+sudo vps-gateway start-http
+```
+
+Après émission du certificat, relancer plutôt l'activation TLS :
+
+```bash
+sudo vps-gateway enable-tls
+```
+
 ## Vérification
 
 ```bash

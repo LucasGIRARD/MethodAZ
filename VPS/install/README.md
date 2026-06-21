@@ -34,13 +34,20 @@ chmod 0600 install/config/secrets.env
 Valider avant toute modification du serveur :
 
 ```bash
+cd /root/vps-setup
 sh install/scripts/validate-bundle.sh --scripts-only
 pwsh install/scripts/validate-repository.ps1
 ```
 
-Le premier script vérifie les projets Compose et les scripts POSIX. Le second
-contrôle PowerShell, les liens Markdown, les fichiers sensibles suivis par Git
-et les références d'images mutables.
+Le premier script vérifie les scripts POSIX sans dépendre de Docker. Après la
+phase Docker, la validation Compose complète peut être lancée avec :
+
+```bash
+sudo sh /opt/vps-install/scripts/validate-bundle.sh
+```
+
+Le second contrôle PowerShell, les liens Markdown, les fichiers sensibles
+suivis par Git et les références d'images mutables.
 
 ## Test local
 

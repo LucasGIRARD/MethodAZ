@@ -94,8 +94,14 @@ contrôle des versions d'images et Gitleaks à chaque modification de `VPS/`.
 La validation locale principale reste :
 
 ```bash
-sh install/scripts/validate-bundle.sh
+sh install/scripts/validate-bundle.sh --scripts-only
 pwsh install/scripts/validate-repository.ps1
+```
+
+Après installation de Docker sur le VPS, relancer la validation complète avec :
+
+```bash
+sudo sh /opt/vps-install/scripts/validate-bundle.sh
 ```
 
 ## Variables à remplacer
