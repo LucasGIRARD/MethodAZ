@@ -73,6 +73,18 @@ resolve_from_install() {
   esac
 }
 
+validate_key_path() {
+  name=$1
+  value=$2
+
+  case "$value" in
+    /*|install/keys/*|keys/*) ;;
+    *)
+      die "$name doit pointer vers install/keys/... ou vers un chemin absolu, pas vers '$value'. Les chemins ../ changent après copie dans /opt/vps-install."
+      ;;
+  esac
+}
+
 load_configuration() {
   [ -r "$CONFIG" ] || die "configuration absente : $CONFIG"
   [ -r "$SECRETS" ] || die "secrets absents : $SECRETS"
@@ -101,6 +113,11 @@ load_configuration() {
 
   : "${ADMIN_USER:?ADMIN_USER manquant}"
   : "${ADMIN_SSH_KEY_FILE:?ADMIN_SSH_KEY_FILE manquant}"
+  validate_key_path ADMIN_SSH_KEY_FILE "$ADMIN_SSH_KEY_FILE"
+  if [ "${ENABLE_SFTP:-true}" = true ]; then
+    : "${SFTP_SSH_KEY_FILE:?SFTP_SSH_KEY_FILE manquant}"
+    validate_key_path SFTP_SSH_KEY_FILE "$SFTP_SSH_KEY_FILE"
+  fi
   : "${ADMIN_PASSWORD_HASH:?ADMIN_PASSWORD_HASH manquant}"
   : "${TIMEZONE:?TIMEZONE manquant}"
 }
@@ -178,6 +195,18 @@ ensure_authorized_key() {
   fi
 }
 
+set_random_disabled_password() {
+  user=$1
+
+  if ! command -v openssl >/dev/null 2>&1; then
+    die "OpenSSL est requis pour préparer le compte $user"
+  fi
+
+  random_password=$(openssl rand -base64 48)
+  random_hash=$(openssl passwd -6 "$random_password")
+  usermod --password "$random_hash" "$user"
+}
+
 web_server_names() {
   names=$WEB_DOMAIN
   old_ifs=$IFS
@@ -233,11 +262,12 @@ stage_installer() {
     install -m 0600 "$CONFIG" "$staged/config/vps.env"
     install -m 0600 "$SECRETS" "$staged/config/secrets.env"
     chown -R root:root "$staged"
+    find "$staged/scripts" -type f -exec chmod 0755 {} \;
   fi
 
   cat > /usr/local/sbin/vps-install <<'EOF'
 #!/bin/sh
-exec /opt/vps-install/scripts/vps-install.sh "$@"
+exec sh /opt/vps-install/scripts/vps-install.sh "$@"
 EOF
   chmod 0755 /usr/local/sbin/vps-install
 }
@@ -362,11 +392,12 @@ EOF
         --gid sftp-only "$SFTP_USER"
     fi
     usermod --gid sftp-only --home /upload --shell /usr/sbin/nologin "$SFTP_USER"
+    set_random_disabled_password "$SFTP_USER"
 
     chroot="${SFTP_ROOT:-/srv/sftp}/$SFTP_USER"
     install -d -m 0755 -o root -g root "$chroot"
     install -d -m 0750 -o "$SFTP_USER" -g sftp-only "$chroot/upload"
-    install -m 0600 -o root -g root \
+    install -m 0644 -o root -g root \
       "$sftp_key" "/etc/ssh/authorized_keys/$SFTP_USER"
   fi
 
@@ -614,8 +645,43 @@ copy_stack() {
   name=$1
   source=$2
   target="/opt/selfhosted/$name"
+
+  [ -d "$source" ] || die "modèle de projet absent : $source"
+  [ -f "$source/docker-compose.yml" ] \
+    || die "fichier Compose absent dans le modèle : $source/docker-compose.yml"
+
   install -d -m 0750 "$target"
   rsync -a --exclude '.env' "$source/" "$target/"
+  [ -f "$target/docker-compose.yml" ] \
+    || die "copie incomplète du projet $name : $target/docker-compose.yml absent"
+}
+
+service_uses_database() {
+  case "$1" in
+    linkwarden|davis|freshrss|ttrss|web) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+database_network_exists() {
+  docker network inspect "${DATABASE_NETWORK_PREFIX:-vps-db}-$1" >/dev/null 2>&1
+}
+
+ensure_database_network_for_service() {
+  service=$1
+  service_uses_database "$service" || return 0
+
+  if database_network_exists "$service"; then
+    return 0
+  fi
+
+  if [ "${INSTALL_DATABASES:-true}" = true ]; then
+    log "Réseau base absent pour $service, préparation du stack databases"
+    install_databases
+  fi
+
+  database_network_exists "$service" \
+    || die "réseau Docker absent : ${DATABASE_NETWORK_PREFIX:-vps-db}-$service. Lancer d'abord : vps-install --phase databases"
 }
 
 prepare_kill_newsletter_source() {
@@ -861,6 +927,7 @@ install_services() {
     [ -n "$service" ] || continue
     source="$INSTALL_DIR/services/$service"
     [ -d "$source" ] || die "modèle de service absent : $service"
+    ensure_database_network_for_service "$service"
     copy_stack "$service" "$source"
     if [ "$service" = kill-newsletter ]; then
       prepare_kill_newsletter_source

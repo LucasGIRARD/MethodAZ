@@ -64,6 +64,17 @@ install -m 0644 /root/vps-sftp.pub install/keys/sftp.pub
 cat install/source-version.txt
 ```
 
+Dans `install/config/vps.env`, conserver les chemins stables du modèle :
+
+```bash
+ADMIN_SSH_KEY_FILE=install/keys/admin.pub
+SFTP_SSH_KEY_FILE=install/keys/sftp.pub
+```
+
+Ne pas utiliser de chemin relatif du type `../../vps-sftp.pub` : après la
+première installation, le bundle est recopié dans `/opt/vps-install` et ce
+chemin ne pointe plus vers le même fichier.
+
 Le mode `--select-version` affiche les releases disponibles et télécharge le
 tag choisi. Pour installer directement la dernière release publiée, utiliser
 `/root/fetch-vps.sh --latest /root/vps-setup`.
@@ -262,6 +273,120 @@ sudo vps-compose linkwarden up -d
 ```
 
 Suivre ensuite sa fiche dans [Services Docker](08-services-docker.md).
+
+## Vérification post-installation
+
+Contrôler d'abord les accès système :
+
+```bash
+sudo ss -ltnp | grep sshd
+sudo sshd -T | grep -E '^(port|permitrootlogin|passwordauthentication|pubkeyauthentication)'
+sudo fail2ban-client status sshd
+```
+
+Depuis le poste client, vérifier les deux accès attendus :
+
+```bash
+ssh -i ~/.ssh/vps-admin -p PORT_REEL ADMIN_USER@IP_DU_SERVEUR
+sftp -i ~/.ssh/vps-sftp -P PORT_REEL depot@IP_DU_SERVEUR
+```
+
+Contrôler Docker, PostgreSQL et les réseaux isolés :
+
+```bash
+sudo docker ps
+sudo docker network ls | grep vps-db
+sudo vps-compose databases ps
+sudo vps-compose databases exec -T postgres pg_isready -U postgres
+```
+
+Contrôler les stacks applicatifs déclarés dans `SERVICES` :
+
+```bash
+for service in linkwarden davis freshrss ttrss web; do
+  sudo vps-compose "$service" config --quiet
+  sudo vps-compose "$service" ps
+done
+```
+
+Contrôler le reverse proxy et les certificats :
+
+```bash
+sudo vps-gateway test
+sudo vps-gateway status
+sudo vps-gateway logs
+```
+
+Depuis le poste client, tester les URL publiques configurées :
+
+```bash
+curl -I https://linkwarden.example.fr
+curl -I https://www.example.fr
+```
+
+Remplacer les domaines d'exemple par les domaines réels. Si un service n'est
+pas dans `SERVICES`, ignorer sa commande `vps-compose`.
+
+## Déployer un nouveau site web
+
+Le service `web` sert le domaine racine depuis :
+
+```text
+/opt/selfhosted/web/html
+```
+
+Chaque entrée de `WEB_SUBDOMAINS` ajoute un sous-domaine et un dossier dédié.
+Par exemple :
+
+```env
+WEB_DOMAIN=example.fr
+WEB_SUBDOMAINS=www,blog
+```
+
+donne :
+
+```text
+https://example.fr       -> /opt/selfhosted/web/html
+https://www.example.fr   -> /opt/selfhosted/web/html/www
+https://blog.example.fr  -> /opt/selfhosted/web/html/blog
+```
+
+Pour ajouter un nouveau sous-domaine :
+
+```bash
+sudo nano /opt/vps-install/config/vps.env
+# ajouter le label dans WEB_SUBDOMAINS, par exemple : WEB_SUBDOMAINS=www,blog,docs
+
+sudo vps-install --phase services
+sudo vps-compose web up -d --build
+
+sudo vps-install --phase gateway
+sudo vps-gateway issue-certificate
+sudo vps-gateway enable-tls
+```
+
+La phase `services` crée automatiquement les dossiers déclarés dans
+`WEB_SUBDOMAINS`. Il reste ensuite à déposer les fichiers du site dans le
+dossier correspondant, par exemple :
+
+```bash
+sudo rsync -a /chemin/local/docs-site/ /opt/selfhosted/web/html/docs/
+sudo chown -R root:root /opt/selfhosted/web/html/docs
+sudo find /opt/selfhosted/web/html/docs -type d -exec chmod 0755 {} \;
+sudo find /opt/selfhosted/web/html/docs -type f -exec chmod 0644 {} \;
+```
+
+Valider ensuite depuis le VPS et depuis le poste client :
+
+```bash
+sudo vps-compose web ps
+curl -I http://127.0.0.1:3006
+curl -I https://docs.example.fr
+```
+
+Pour un site déposé par SFTP, envoyer les fichiers avec le compte `depot` dans
+`/upload`, puis les déplacer depuis la session SSH admin vers
+`/opt/selfhosted/web/html/NOM_DU_SITE`.
 
 ## Reprise après erreur
 

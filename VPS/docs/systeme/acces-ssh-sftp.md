@@ -82,7 +82,14 @@ Le répertoire de chroot appartient obligatoirement à root :
 ```
 
 La clé SFTP est stockée hors du chroot dans
-`/etc/ssh/authorized_keys/depot`.
+`/etc/ssh/authorized_keys/depot`, avec le propriétaire `root:root` et le mode
+`0644`. Le contenu est une clé publique ; OpenSSH doit pouvoir lire ce fichier
+pendant l'authentification de `depot`.
+
+Le compte `depot` n'a pas de mot de passe connu. L'installateur lui attribue
+un hash aléatoire non stocké plutôt qu'un compte verrouillé (`!` ou `*`), car
+OpenSSH peut refuser les clés publiques d'un compte verrouillé avant même
+d'arriver à la phase SFTP.
 
 ## Connexion depuis le client
 
@@ -140,6 +147,8 @@ sudo sshd -T | grep -E '^(port|permitrootlogin|passwordauthentication)'
 sudo ss -ltnp | grep sshd
 sudo systemctl is-active ssh.socket || true
 sudo ls -l /root/.ssh/authorized_keys /home/lucas/.ssh/authorized_keys
+sudo ls -l /etc/ssh/authorized_keys/depot
+sudo passwd -S depot
 ```
 
 Si `22` apparaît encore avant la finalisation, c'est normal :

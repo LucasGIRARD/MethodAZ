@@ -122,6 +122,17 @@ install -m 0644 /root/vps-sftp.pub install/keys/sftp.pub
 cat install/source-version.txt
 ```
 
+Dans `install/config/vps.env`, garder les chemins du modèle :
+
+```bash
+ADMIN_SSH_KEY_FILE=install/keys/admin.pub
+SFTP_SSH_KEY_FILE=install/keys/sftp.pub
+```
+
+Ne pas pointer vers `../../vps-admin.pub` ou `../../vps-sftp.pub`. Après la
+première installation, le bundle est recopié dans `/opt/vps-install` et ces
+chemins relatifs ne désignent plus les mêmes fichiers.
+
 Le script `fetch-vps.sh` est publié comme asset de release. Il télécharge
 uniquement le contenu nécessaire du dossier `VPS` pour la version choisie, sans
 cloner le dépôt complet MethodAZ.

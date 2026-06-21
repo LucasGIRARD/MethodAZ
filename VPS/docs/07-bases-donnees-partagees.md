@@ -21,6 +21,15 @@ Une application reliée au réseau `vps-db-davis` ne peut pas joindre le réseau
 `vps-db-freshrss`, même si les deux bases sont servies par le même conteneur
 PostgreSQL.
 
+Si Docker Compose retourne une erreur du type
+`network vps-db-linkwarden declared as external, but could not be found`, le
+stack applicatif a été lancé avant la création des réseaux de base. Rejouer :
+
+```bash
+sudo vps-install --phase databases
+sudo vps-install --phase services
+```
+
 ## Déploiement
 
 Le projet se trouve sous `install/databases`. L'installateur le démarre avant
