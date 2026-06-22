@@ -205,6 +205,89 @@ Après émission du certificat, relancer plutôt l'activation TLS :
 sudo vps-gateway enable-tls
 ```
 
+### `502 Bad Gateway` sur une application
+
+Un `502` depuis HTTPS signifie généralement que Nginx fonctionne, mais que le
+service local derrière le proxy ne répond pas. Les ports attendus sont :
+
+```text
+127.0.0.1:3001  Linkwarden
+127.0.0.1:3002  Davis
+127.0.0.1:3003  FreshRSS
+127.0.0.1:3004  Tiny Tiny RSS
+127.0.0.1:3005  Kill the Newsletter
+127.0.0.1:3006  Apache/PHP
+```
+
+Contrôler d'abord les projets et les ports locaux :
+
+```bash
+sudo vps-compose all ps
+sudo ss -ltnp | grep -E ':(3001|3002|3003|3004|3005|3006)\b'
+
+curl -i --max-time 5 http://127.0.0.1:3001/
+curl -i --max-time 5 http://127.0.0.1:3002/
+curl -i --max-time 5 -H 'Host: newsletter.example.fr' http://127.0.0.1:3005/
+```
+
+Le test newsletter est volontairement en HTTP. TLS est terminé par Nginx ; un
+test direct en HTTPS sur `127.0.0.1:3005` n'est pas attendu fonctionnel. Comme
+le service utilise `network_mode: host`, le port `3005` doit être porté par le
+processus applicatif, pas par `docker-proxy`.
+
+Si un port ne répond pas, regarder le service correspondant puis le relancer :
+
+```bash
+sudo vps-compose linkwarden logs --tail=100 app
+sudo vps-compose davis logs --tail=100 app nginx migrate
+sudo vps-compose kill-newsletter logs --tail=100 app
+
+sudo vps-compose databases up -d
+sudo vps-compose linkwarden up -d
+sudo vps-compose davis up -d
+sudo vps-compose kill-newsletter up -d --build
+```
+
+Après correction, recharger le gateway :
+
+```bash
+sudo vps-gateway test
+sudo vps-gateway enable-tls
+```
+
+### `500` sur le monitoring
+
+Pour le monitoring, distinguer d'abord un problème Grafana d'un problème
+d'authentification Nginx :
+
+```bash
+curl -i --max-time 5 http://127.0.0.1:3000/api/health
+sudo vps-monitoring status
+sudo vps-monitoring logs grafana
+sudo docker logs gateway-nginx-1 --tail=100
+```
+
+Si l'API locale Grafana répond `200` mais que HTTPS répond `500`, vérifier le
+fichier htpasswd monté dans Nginx. Le conteneur doit pouvoir traverser le
+dossier et lire le fichier :
+
+```bash
+sudo ls -ld /opt/selfhosted/gateway/nginx/auth
+sudo ls -l /opt/selfhosted/gateway/nginx/auth/.htpasswd-monitoring
+
+sudo chmod 0755 /opt/selfhosted/gateway/nginx/auth
+sudo chmod 0644 /opt/selfhosted/gateway/nginx/auth/.htpasswd-monitoring
+sudo vps-gateway test
+sudo vps-gateway enable-tls
+```
+
+Si l'API locale Grafana ne répond pas, relancer la supervision :
+
+```bash
+sudo vps-monitoring apply
+sudo vps-monitoring logs grafana
+```
+
 ### Certificat absent
 
 Si `sudo vps-gateway enable-tls` affiche :

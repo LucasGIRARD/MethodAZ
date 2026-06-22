@@ -60,3 +60,30 @@ sudo vps-compose linkwarden up -d
 /opt/selfhosted/linkwarden/data
 /opt/selfhosted/databases/postgres
 ```
+
+## Dépannage
+
+### Prisma `P1013` sur `DATABASE_URL`
+
+Si Linkwarden redémarre en boucle avec :
+
+```text
+Error: P1013: The provided database string is invalid. invalid port number in database URL.
+```
+
+le mot de passe PostgreSQL contient probablement un caractère réservé dans une
+URL (`#`, `@`, `:`, `/`, `%`, etc.). L'installateur encode désormais le mot de
+passe dans `LINKWARDEN_DATABASE_URL`.
+
+Reprendre dans cet ordre :
+
+```bash
+sudo vps-install --phase databases
+sudo vps-install --phase services
+sudo vps-compose linkwarden up -d --force-recreate
+sudo vps-compose linkwarden logs --tail=100 app
+```
+
+Ne pas écrire soi-même `DATABASE_URL` avec le mot de passe brut. La base
+PostgreSQL reçoit le mot de passe réel, tandis que l'application reçoit une URL
+avec le mot de passe percent-encodé.

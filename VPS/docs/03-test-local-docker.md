@@ -1,4 +1,4 @@
-﻿# Test local avec Docker Compose
+# Test local avec Docker Compose
 
 ## Objectif
 

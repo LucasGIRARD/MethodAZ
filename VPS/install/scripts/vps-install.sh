@@ -264,6 +264,16 @@ compose_env_quote() {
   printf "'%s'" "$(printf '%s' "$1" | sed "s/'/\\\\'/g")"
 }
 
+url_encode() {
+  command -v jq >/dev/null 2>&1 \
+    || die "jq est requis pour encoder les mots de passe dans les URLs"
+  printf '%s' "$1" | jq -sRr @uri
+}
+
+symfony_url_encode() {
+  url_encode "$1" | sed 's/%/%%/g'
+}
+
 ensure_authorized_key() {
   key_file=$1
   authorized_keys=$2
@@ -856,6 +866,7 @@ LINKWARDEN_URL=${LINKWARDEN_URL:-https://$LINKWARDEN_DOMAIN}
 LINKWARDEN_DISABLE_REGISTRATION=${LINKWARDEN_DISABLE_REGISTRATION:-false}
 TIMEZONE=$TIMEZONE
 LINKWARDEN_DB_PASSWORD=$(compose_env_quote "$LINKWARDEN_DB_PASSWORD")
+LINKWARDEN_DATABASE_URL=$(compose_env_quote "postgresql://linkwarden:$(url_encode "$LINKWARDEN_DB_PASSWORD")@postgres:5432/linkwarden")
 LINKWARDEN_NEXTAUTH_SECRET=$(compose_env_quote "$LINKWARDEN_NEXTAUTH_SECRET")
 LINKWARDEN_MEMORY_LIMIT=$LINKWARDEN_MEMORY_LIMIT
 EOF
@@ -869,6 +880,7 @@ DATABASE_NETWORK_PREFIX=${DATABASE_NETWORK_PREFIX:-vps-db}
 DAVIS_DOMAIN=$DAVIS_DOMAIN
 TIMEZONE=$TIMEZONE
 DAVIS_DB_PASSWORD=$(compose_env_quote "$DAVIS_DB_PASSWORD")
+DAVIS_DATABASE_URL=$(compose_env_quote "postgresql://davis:$(symfony_url_encode "$DAVIS_DB_PASSWORD")@postgres:5432/davis?serverVersion=${POSTGRES_MAJOR_VERSION:-16}&charset=UTF-8")
 DAVIS_APP_SECRET=$(compose_env_quote "$DAVIS_APP_SECRET")
 DAVIS_ADMIN_PASSWORD=$(compose_env_quote "$DAVIS_ADMIN_PASSWORD")
 DAVIS_MEMORY_LIMIT=$DAVIS_MEMORY_LIMIT
@@ -1065,11 +1077,11 @@ CERTBOT_MEMORY_LIMIT=$CERTBOT_MEMORY_LIMIT
 EOF
   chmod 0600 /opt/selfhosted/gateway/.env
 
-  install -d -m 0750 /opt/selfhosted/gateway/nginx/auth
+  install -d -m 0755 /opt/selfhosted/gateway/nginx/auth
   htpasswd -bcB \
     /opt/selfhosted/gateway/nginx/auth/.htpasswd-monitoring \
     observateur "$GRAFANA_HTTP_PASSWORD"
-  chmod 0640 /opt/selfhosted/gateway/nginx/auth/.htpasswd-monitoring
+  chmod 0644 /opt/selfhosted/gateway/nginx/auth/.htpasswd-monitoring
   install -m 0644 "$INSTALL_DIR/system/logrotate/nginx-container" \
     /etc/logrotate.d/nginx-container
 

@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "VPS/docs/archive/legacy/3-prepa-package-caddy.md",
+                "file": "VPS/docs/10-supervision-rapports.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "3-prepa-package-caddy"
+              "title": "10-supervision-rapports"
             }
           }
         ]
@@ -53,7 +53,7 @@
             "state": {
               "type": "search",
               "state": {
-                "query": "floccus",
+                "query": "monitor",
                 "matchingCase": false,
                 "explainSearch": false,
                 "collapseAll": false,
@@ -231,8 +231,11 @@
       "css-editor:Open CSS editor quick switcher": false
     }
   },
-  "active": "132004aed737adaa",
+  "active": "a17f1dfb26e1fa02",
   "lastOpenFiles": [
+    "VPS/docs/06-docker.md",
+    "VPS/docs/03-test-local-docker.md",
+    "VPS/docs/archive/legacy/3-prepa-package-caddy.md",
     "VPS/docs/02-docker.md",
     "VPS/docs/archive/legacy/1-maj-auto.md",
     "VPS/docs/00-contexte-et-hypotheses.md",
@@ -266,9 +269,6 @@
     "VPS/install/validation/fetch-test-sh/docs/archive/legacy/37-tls.md",
     "VPS/install/validation/fetch-test-sh/docs/archive/legacy/36-scout.md",
     "VPS/install/validation/fetch-test-sh/docs/archive/legacy/35-trivy.md",
-    "VPS/install/validation/fetch-test-sh/docs/archive/legacy/34-alt-watchtower.md",
-    "VPS/install/validation/fetch-test-sh/docs/archive/legacy/33-mail.md",
-    "VPS/install/validation/fetch-test-sh/docs/archive/legacy/32-nginx.md",
     "meta metodo/design system.png.webp",
     "refs/res/workflow_audience.svg",
     "refs/res/workflow_systeme_corrige.svg",

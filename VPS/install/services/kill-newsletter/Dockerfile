@@ -20,6 +20,6 @@ COPY --from=build --chown=node:node /app /app
 
 USER node
 
-EXPOSE 8000
+EXPOSE 3005
 
-CMD ["node", "--enable-source-maps", "build/index.mjs", "/etc/kill-newsletter/configuration.mjs", "--type", "server", "--port", "8000"]
+CMD ["node", "--enable-source-maps", "build/index.mjs", "/etc/kill-newsletter/configuration.mjs", "--type", "server", "--port", "3005"]

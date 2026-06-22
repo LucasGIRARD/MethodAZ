@@ -28,14 +28,23 @@ services:
       args:
         NODE_IMAGE: ${KILL_NEWSLETTER_NODE_IMAGE:-node:24-bookworm-slim}
     restart: unless-stopped
+    network_mode: host
+    command:
+      - node
+      - --enable-source-maps
+      - build/index.mjs
+      - /etc/kill-newsletter/configuration.mjs
+      - --type
+      - server
+      - --port
+      - "3005"
     environment:
       KILL_NEWSLETTER_HOSTNAME: ${KILL_NEWSLETTER_HOSTNAME:-localhost}
       KILL_NEWSLETTER_ADMIN_EMAIL: ${KILL_NEWSLETTER_ADMIN_EMAIL:-local@example.invalid}
+      NODE_OPTIONS: --dns-result-order=ipv4first
     depends_on:
       data-init:
         condition: service_completed_successfully
-    ports:
-      - "127.0.0.1:3005:8000"
     volumes:
       - ./data:/app/data
       - ./configuration.mjs:/etc/kill-newsletter/configuration.mjs:ro
@@ -46,7 +55,7 @@ services:
         - CMD
         - node
         - -e
-        - "const http=require('http');const r=http.get('http://127.0.0.1:8000/',s=>process.exit(s.statusCode<500?0:1));r.on('error',()=>process.exit(1));r.setTimeout(5000,()=>{r.destroy();process.exit(1)})"
+        - "const http=require('http');const r=http.get({host:'127.0.0.1',port:3005,path:'/',headers:{Host:process.env.KILL_NEWSLETTER_HOSTNAME||'localhost'}},s=>process.exit(s.statusCode<500?0:1));r.on('error',()=>process.exit(1));r.setTimeout(5000,()=>{r.destroy();process.exit(1)})"
       interval: 30s
       timeout: 8s
       retries: 5

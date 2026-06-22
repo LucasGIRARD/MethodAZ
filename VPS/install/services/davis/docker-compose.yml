@@ -1,15 +1,36 @@
 name: davis
 
 services:
+  init:
+    image: ghcr.io/tchapi/davis:${DAVIS_VERSION}
+    user: "0:0"
+    command:
+      - sh
+      - -c
+      - >-
+        mkdir -p /var/www/davis/var/cache /var/www/davis/var/log /data
+        && chown -R www-data:www-data /var/www/davis/var /data
+    volumes:
+      - davis_www:/var/www/davis
+      - ./data:/data
+    pids_limit: 64
+    mem_limit: 64m
+    security_opt:
+      - no-new-privileges:true
+    restart: "no"
+
   migrate:
     image: ghcr.io/tchapi/davis:${DAVIS_VERSION}
     restart: "no"
+    depends_on:
+      init:
+        condition: service_completed_successfully
     environment:
       APP_ENV: prod
       APP_SECRET: ${DAVIS_APP_SECRET}
       APP_TIMEZONE: ${TIMEZONE}
       DATABASE_DRIVER: postgresql
-      DATABASE_URL: "postgresql://davis:${DAVIS_DB_PASSWORD}@postgres:5432/davis?serverVersion=${POSTGRES_MAJOR_VERSION:-16}&charset=UTF-8"
+      DATABASE_URL: ${DAVIS_DATABASE_URL}
       TZ: ${TIMEZONE}
     command:
       - php
@@ -36,7 +57,7 @@ services:
       APP_SECRET: ${DAVIS_APP_SECRET}
       APP_TIMEZONE: ${TIMEZONE}
       DATABASE_DRIVER: postgresql
-      DATABASE_URL: "postgresql://davis:${DAVIS_DB_PASSWORD}@postgres:5432/davis?serverVersion=${POSTGRES_MAJOR_VERSION:-16}&charset=UTF-8"
+      DATABASE_URL: ${DAVIS_DATABASE_URL}
       ADMIN_LOGIN: admin
       ADMIN_PASSWORD: ${DAVIS_ADMIN_PASSWORD}
       AUTH_REALM: Davis
