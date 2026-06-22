@@ -8,10 +8,25 @@ vers le VPS avant l'émission :
 ```bash
 dig +short links.example.fr A
 dig +short monitoring.example.fr A
+dig +short links.example.fr AAAA
 ```
+
+Si le VPS n'est pas configuré et ouvert en IPv6, ne pas publier
+d'enregistrement `AAAA` pour ces domaines. Let's Encrypt peut utiliser IPv6
+même si l'IPv4 est correcte.
 
 Si un domaine n'est pas utilisé, il faut le retirer de la commande
 `issue_certificate` avant de lancer Certbot.
+
+Le port 80 doit aussi être joignable depuis Internet avant l'émission. Depuis
+un poste client :
+
+```powershell
+Test-NetConnection IP_DU_SERVEUR -Port 80
+```
+
+Si le VPS répond localement (`curl -I http://127.0.0.1`) mais pas depuis le
+client, ouvrir TCP `80` et `443` dans le pare-feu réseau du fournisseur.
 
 ## Amorçage HTTP
 

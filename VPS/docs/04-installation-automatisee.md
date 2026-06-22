@@ -394,10 +394,15 @@ dossier correspondant, par exemple :
 
 ```bash
 sudo rsync -a /chemin/local/docs-site/ /opt/selfhosted/web/html/docs/
-sudo chown -R root:root /opt/selfhosted/web/html/docs
+sudo chown -R depot:sftp-only /opt/selfhosted/web/html/docs
 sudo find /opt/selfhosted/web/html/docs -type d -exec chmod 0755 {} \;
 sudo find /opt/selfhosted/web/html/docs -type f -exec chmod 0644 {} \;
 ```
+
+Si le site est maintenu par SFTP, conserver `depot:sftp-only` sur les dossiers
+dans `/opt/selfhosted/web/html`. Le compte `depot` garde l'écriture, et Apache
+peut servir les fichiers grâce aux droits de lecture `0644` et de parcours
+`0755`. Remettre ces dossiers en `root:root` bloque les prochains dépôts SFTP.
 
 Valider ensuite depuis le VPS et depuis le poste client :
 

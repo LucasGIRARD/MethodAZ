@@ -135,6 +135,7 @@ configure_sftp_directories() {
   if [ "$writable" = /opt/selfhosted/web/html ]; then
     chown -R "$SFTP_USER:sftp-only" "$writable"
     find "$writable" -type d -exec chmod 0755 {} \;
+    find "$writable" -type f -exec chmod 0644 {} \;
   fi
 }
 

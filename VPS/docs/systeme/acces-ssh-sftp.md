@@ -96,6 +96,10 @@ accessible en SFTP appartient au compte `depot` :
 Dans la session SFTP, `depot` arrive dans `/html`. Ce chemin correspond sur le
 système hôte à `/opt/selfhosted/web/html`.
 
+Le contenu web est public par destination. Les dossiers sont en `0755` et les
+fichiers en `0644` pour permettre au conteneur Apache de les lire sans donner
+d'accès shell supplémentaire au compte SFTP.
+
 La clé SFTP est stockée hors du chroot dans
 `/etc/ssh/authorized_keys/depot`, avec le propriétaire `root:root` et le mode
 `0644`. Le contenu est une clé publique ; OpenSSH doit pouvoir lire ce fichier
@@ -186,6 +190,8 @@ valide `sshd`, recharge SSH et régénère le pare-feu.
 ```bash
 sudo sshd -t
 sudo sshd -T | grep -E '^(port|permitrootlogin|passwordauthentication)'
+sudo sshd -T -C user=depot,host=localhost,addr=127.0.0.1 \
+  | grep -E '^(chrootdirectory|forcecommand|authorizedkeysfile|pubkeyauthentication|passwordauthentication)'
 sudo ss -ltnp | grep sshd
 sudo systemctl is-active ssh.socket || true
 sudo ls -l /root/.ssh/authorized_keys /home/lucas/.ssh/authorized_keys
@@ -210,6 +216,26 @@ sudo chown root:root /etc/ssh/authorized_keys/depot
 sudo chmod 0644 /etc/ssh/authorized_keys/depot
 sudo sshd -t
 sudo systemctl restart ssh
+```
+
+Si la configuration effective affiche encore :
+
+```text
+chrootdirectory /srv/sftp/%u
+forcecommand internal-sftp -d /html -u 0027
+```
+
+rejouer la phase SSH après avoir corrigé `/opt/vps-install/config/vps.env` :
+
+```bash
+sudo vps-install --phase ssh
+```
+
+Les valeurs attendues sont :
+
+```text
+chrootdirectory /opt/selfhosted/web
+forcecommand internal-sftp -d /html -u 0022
 ```
 
 Si `22` apparaît encore avant la finalisation, c'est normal :

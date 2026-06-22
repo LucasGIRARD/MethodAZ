@@ -83,6 +83,55 @@ sudo vps-gateway renew
 
 ## Dépannage
 
+### Ports 80/443 inaccessibles depuis Internet
+
+Avant Certbot, le port 80 doit être joignable publiquement. Depuis le poste
+client :
+
+```powershell
+Test-NetConnection IP_DU_SERVEUR -Port 80
+Test-NetConnection IP_DU_SERVEUR -Port 443
+```
+
+Si `TcpTestSucceeded` vaut `False`, vérifier d'abord que Nginx écoute sur le
+VPS :
+
+```bash
+sudo ss -ltnp | grep -E ':(80|443)\b'
+curl -I http://127.0.0.1
+sudo docker inspect gateway-nginx-1 --format '{{.HostConfig.NetworkMode}}'
+```
+
+La valeur attendue pour le conteneur est `host`, et `ss` doit montrer
+`0.0.0.0:80` ou `[::]:80`. Si le VPS répond localement mais pas depuis
+Internet, ouvrir les ports entrants TCP `80` et `443` dans le pare-feu réseau du
+fournisseur, en plus du pare-feu Linux.
+
+### DNS, IPv4 et IPv6
+
+Tous les domaines demandés au certificat doivent pointer vers le VPS. Vérifier
+les enregistrements `A` et `AAAA` :
+
+```powershell
+Resolve-DnsName example.fr -Type A
+Resolve-DnsName example.fr -Type AAAA
+```
+
+Si le VPS n'est pas configuré en IPv6, supprimer les enregistrements `AAAA` des
+domaines concernés. Let's Encrypt peut tenter IPv6 ; un ancien `AAAA` vers un
+autre serveur peut provoquer :
+
+```text
+The key authorization file from the server did not match this challenge
+```
+
+Pour tester l'IPv4 en forçant la cible :
+
+```powershell
+curl.exe --resolve example.fr:80:IP_DU_SERVEUR `
+  http://example.fr/.well-known/acme-challenge/ping
+```
+
 ### `WEB_SERVER_NAMES` non défini
 
 Si Docker Compose affiche :

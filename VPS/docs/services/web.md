@@ -112,6 +112,46 @@ Avec le compte SFTP `depot`, ce même dossier est exposé sous :
 Le dépôt SFTP dans `/html/www` écrit donc dans
 `/opt/selfhosted/web/html/www`.
 
+Les fichiers web sont détenus par `depot:sftp-only`. Les dossiers doivent
+rester en `0755` et les fichiers en `0644` pour permettre au conteneur Apache
+de les lire. Les secrets et fichiers privés ne doivent pas être placés dans ce
+document root.
+
+## Dépannage
+
+### `403 Forbidden` dans Apache
+
+Si le test local retourne :
+
+```bash
+curl -i -H 'Host: www.example.fr' http://127.0.0.1:3006/
+```
+
+avec `Server unable to read htaccess file`, corriger les droits du document
+root :
+
+```bash
+sudo chown -R depot:sftp-only /opt/selfhosted/web/html
+sudo find /opt/selfhosted/web/html -type d -exec chmod 0755 {} \;
+sudo find /opt/selfhosted/web/html -type f -exec chmod 0644 {} \;
+sudo vps-compose web up -d --force-recreate
+```
+
+### `502 Bad Gateway` sur un sous-domaine
+
+Si le test local sur `127.0.0.1:3006` répond `200 OK`, mais HTTPS répond `502`,
+le conteneur web est bon et le problème est côté gateway. Vérifier que le
+sous-domaine est dans `WEB_SUBDOMAINS`, puis régénérer :
+
+```bash
+sudo grep -E '^(WEB_DOMAIN|WEB_SUBDOMAINS|WEB_SERVER_NAMES)=' \
+  /opt/selfhosted/gateway/.env
+sudo docker exec gateway-nginx-1 nginx -T | grep -A8 -B4 'www.example.fr'
+
+sudo vps-install --phase gateway
+sudo vps-gateway enable-tls
+```
+
 ## Journaux
 
 Apache écrit vers stdout et stderr :
